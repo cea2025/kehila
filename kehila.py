@@ -680,7 +680,6 @@ st.markdown("""
 from app.state import init_session_state, render_sidebar
 from app.projection import compute_projections
 from app.ui_tabs import render_existing_tab, render_new_tab, render_combined_tab, render_balance_calculator_tab
-from app.balance_calculator import calculate_targets
 
 # =============================================================================
 # אתחול
@@ -696,8 +695,8 @@ render_sidebar()
 # תוכן ראשי
 # =============================================================================
 st.title("💰 מערכת תכנון פיננסי לקהילה")
-st.markdown("---")
-
+    st.markdown("---")
+    
 # חישוב תחזיות פעם אחת
 with st.spinner("מחשב תחזיות..."):
     df_existing, df_new, df_combined = compute_projections()
@@ -720,19 +719,8 @@ with tab3:
     render_combined_tab(df_combined, df_existing, df_new)
 
 with tab4:
-    # חישוב ערכי יעד (עשוי לקחת כמה שניות)
-    with st.spinner("מחשב ערכי יעד..."):
-        targets = calculate_targets(
-            st.session_state.df_existing_loans,
-            st.session_state.df_yearly_params,
-            st.session_state.existing_loan_amount,
-            st.session_state.existing_repayment_months,
-            st.session_state.wedding_age,
-            st.session_state.avg_children_new_family,
-            st.session_state.months_between_children,
-            st.session_state.initial_balance
-        )
-    render_balance_calculator_tab(targets)
+    # מחשבון איזון אינטראקטיבי - חישוב לפי לחיצה על כפתורים
+    render_balance_calculator_tab({})
 
 # =============================================================================
 # Footer
