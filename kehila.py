@@ -116,7 +116,7 @@ def init_session_state():
     
     # פרמטרים גלובליים
     if 'initial_balance' not in st.session_state:
-        st.session_state.initial_balance = 500000
+        st.session_state.initial_balance = 0
     
     if 'wedding_age' not in st.session_state:
         st.session_state.wedding_age = 20
