@@ -8,6 +8,7 @@
 - טאב 1: קיימים (ילדים 2005-2025)
 - טאב 2: חדשות (משפחות מ-2026)
 - טאב 3: מאוחד (כולל ניתוח וייצוא)
+- טאב 4: מחשבון איזון (ערכי יעד)
 """
 
 import streamlit as st
@@ -112,7 +113,8 @@ st.markdown("""
 # =============================================================================
 from app.state import init_session_state, render_sidebar
 from app.projection import compute_projections
-from app.ui_tabs import render_existing_tab, render_new_tab, render_combined_tab
+from app.ui_tabs import render_existing_tab, render_new_tab, render_combined_tab, render_balance_calculator_tab
+from app.balance_calculator import calculate_targets
 
 # =============================================================================
 # אתחול
@@ -135,10 +137,11 @@ with st.spinner("מחשב תחזיות..."):
     df_existing, df_new, df_combined = compute_projections()
 
 # יצירת טאבים
-tab1, tab2, tab3 = st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "👶 קיימים",
     "👨‍👩‍👧‍👦 חדשות",
-    "📊 מאוחד"
+    "📊 מאוחד",
+    "🎯 מחשבון איזון"
 ])
 
 with tab1:
@@ -149,6 +152,21 @@ with tab2:
 
 with tab3:
     render_combined_tab(df_combined, df_existing, df_new)
+
+with tab4:
+    # חישוב ערכי יעד (עשוי לקחת כמה שניות)
+    with st.spinner("מחשב ערכי יעד..."):
+        targets = calculate_targets(
+            st.session_state.df_existing_loans,
+            st.session_state.df_yearly_params,
+            st.session_state.existing_loan_amount,
+            st.session_state.existing_repayment_months,
+            st.session_state.wedding_age,
+            st.session_state.avg_children_new_family,
+            st.session_state.months_between_children,
+            st.session_state.initial_balance
+        )
+    render_balance_calculator_tab(targets)
 
 # =============================================================================
 # Footer

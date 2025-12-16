@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-ui_tabs.py - רינדור 3 הטאבים
+ui_tabs.py - רינדור הטאבים
 
 סדר גרפים בכל טאב:
 1. תזרים/יתרה מצטברת
@@ -12,6 +12,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from io import BytesIO
+from typing import Dict, Optional
 
 
 def render_existing_tab(df_existing: pd.DataFrame):
@@ -437,4 +438,257 @@ def render_combined_tab(df_combined: pd.DataFrame, df_existing: pd.DataFrame, df
     # === טבלת נתונים מלאה ===
     st.subheader("📋 טבלת נתונים מלאה")
     st.dataframe(df_combined, use_container_width=True, height=400)
+
+
+def render_balance_calculator_tab(targets: Dict[str, Dict[str, any]]):
+    """
+    טאב מחשבון איזון - מציג ערכי יעד לאיזון הקרן
+    """
+    st.header("🎯 מחשבון איזון")
+    st.markdown("""
+**מה הערכים שצריך כדי שהקרן תהיה מאוזנת?**
+
+המחשבון מציג את הערכים המומלצים לכל פרמטר כדי להגיע ליתרה חיובית בכל השנים.
+""")
+    
+    st.markdown("---")
+    
+    # === 1. יתרה התחלתית ===
+    st.subheader("💰 יתרה התחלתית נדרשת")
+    
+    initial_data = targets.get('יתרה_התחלתית', {})
+    current_initial = initial_data.get('current', 0)
+    target_initial = initial_data.get('target_combined', 0)
+    is_balanced = initial_data.get('is_balanced', False)
+    min_combined = initial_data.get('min_combined', 0)
+    
+    col1, col2, col3 = st.columns([1, 1, 2])
+    
+    with col1:
+        st.metric("ערך נוכחי", f"₪{current_initial:,.0f}")
+    
+    with col2:
+        if is_balanced:
+            st.success("✅ מאוזן!")
+            st.metric("ערך מומלץ", "לא נדרש")
+        else:
+            st.metric("ערך מומלץ", f"₪{target_initial:,.0f}")
+    
+    with col3:
+        if not is_balanced:
+            st.error(f"""
+**🔴 גירעון מקסימלי: ₪{abs(min_combined):,.0f}**
+
+כדי לכסות את הגירעון הזמני, הקופה צריכה להתחיל עם לפחות **₪{target_initial:,.0f}**
+""")
+        else:
+            st.success("הקרן מאוזנת עם היתרה הנוכחית!")
+    
+    st.markdown("---")
+    
+    # === 2. דמי מנוי משפחתי ===
+    st.subheader("💳 דמי מנוי משפחתי")
+    
+    fee_data = targets.get('דמי_מנוי', {})
+    current_fee = fee_data.get('current', 300)
+    target_fee_new = fee_data.get('target_new')
+    target_fee_combined = fee_data.get('target_combined')
+    is_balanced_new = fee_data.get('is_balanced_new', False)
+    is_balanced_combined = fee_data.get('is_balanced_combined', False)
+    min_new = fee_data.get('min_new', 0)
+    min_combined = fee_data.get('min_combined', 0)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("ערך נוכחי", f"₪{current_fee:,.0f}/חודש")
+    
+    with col2:
+        st.markdown("**חדשות לבד:**")
+        if is_balanced_new:
+            st.success("✅ מאוזן")
+        elif target_fee_new:
+            status = "🟡" if min_new > -5_000_000 else "🔴"
+            st.warning(f"{status} צריך **₪{target_fee_new:,.0f}**/חודש")
+            st.caption(f"גירעון: ₪{abs(min_new)/1e6:.1f}M")
+        else:
+            st.error("🔴 לא ניתן לאזן")
+    
+    with col3:
+        st.markdown("**מאוחד (כולל קיימים):**")
+        if is_balanced_combined:
+            st.success("✅ מאוזן")
+        elif target_fee_combined:
+            status = "🟡" if min_combined > -5_000_000 else "🔴"
+            st.warning(f"{status} צריך **₪{target_fee_combined:,.0f}**/חודש")
+            st.caption(f"גירעון: ₪{abs(min_combined)/1e6:.1f}M")
+        else:
+            st.error("🔴 לא ניתן לאזן")
+    
+    st.markdown("---")
+    
+    # === 3. גובה הלוואה ===
+    st.subheader("🏦 גובה הלוואה")
+    
+    loan_data = targets.get('גובה_הלוואה', {})
+    current_loan = loan_data.get('current', 100000)
+    target_loan_new = loan_data.get('target_new')
+    target_loan_combined = loan_data.get('target_combined')
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("ערך נוכחי", f"₪{current_loan:,.0f}")
+    
+    with col2:
+        st.markdown("**חדשות לבד:**")
+        if loan_data.get('is_balanced_new', False):
+            st.success("✅ מאוזן")
+        elif target_loan_new:
+            st.warning(f"🟡 מקסימום **₪{target_loan_new:,.0f}**")
+        else:
+            st.error("🔴 לא ניתן לאזן")
+    
+    with col3:
+        st.markdown("**מאוחד:**")
+        if loan_data.get('is_balanced_combined', False):
+            st.success("✅ מאוזן")
+        elif target_loan_combined:
+            st.warning(f"🟡 מקסימום **₪{target_loan_combined:,.0f}**")
+        else:
+            st.error("🔴 לא ניתן לאזן")
+    
+    st.markdown("---")
+    
+    # === 4. מספר תשלומים ===
+    st.subheader("📆 מספר תשלומים (חודשים)")
+    
+    repay_data = targets.get('תשלומים', {})
+    current_repay = repay_data.get('current', 100)
+    target_repay_new = repay_data.get('target_new')
+    target_repay_combined = repay_data.get('target_combined')
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("ערך נוכחי", f"{current_repay:,.0f} חודשים")
+    
+    with col2:
+        st.markdown("**חדשות לבד:**")
+        if repay_data.get('is_balanced_new', False):
+            st.success("✅ מאוזן")
+        elif target_repay_new:
+            st.warning(f"🟡 מינימום **{target_repay_new:,.0f}** חודשים")
+        else:
+            st.error("🔴 לא ניתן לאזן")
+    
+    with col3:
+        st.markdown("**מאוחד:**")
+        if repay_data.get('is_balanced_combined', False):
+            st.success("✅ מאוזן")
+        elif target_repay_combined:
+            st.warning(f"🟡 מינימום **{target_repay_combined:,.0f}** חודשים")
+        else:
+            st.error("🔴 לא ניתן לאזן")
+    
+    st.markdown("---")
+    
+    # === 5. אחוז לוקחי הלוואה ===
+    st.subheader("📊 אחוז לוקחי הלוואה")
+    
+    pct_data = targets.get('אחוז_הלוואה', {})
+    current_pct = pct_data.get('current', 100)
+    target_pct_new = pct_data.get('target_new')
+    target_pct_combined = pct_data.get('target_combined')
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("ערך נוכחי", f"{current_pct:,.0f}%")
+    
+    with col2:
+        st.markdown("**חדשות לבד:**")
+        if pct_data.get('is_balanced_new', False):
+            st.success("✅ מאוזן")
+        elif target_pct_new:
+            st.warning(f"🟡 מקסימום **{target_pct_new:,.0f}%**")
+        else:
+            st.error("🔴 לא ניתן לאזן")
+    
+    with col3:
+        st.markdown("**מאוחד:**")
+        if pct_data.get('is_balanced_combined', False):
+            st.success("✅ מאוזן")
+        elif target_pct_combined:
+            st.warning(f"🟡 מקסימום **{target_pct_combined:,.0f}%**")
+        else:
+            st.error("🔴 לא ניתן לאזן")
+    
+    st.markdown("---")
+    
+    # === סיכום והמלצות ===
+    st.subheader("📋 סיכום והמלצות")
+    
+    # בניית המלצות אוטומטיות
+    recommendations = []
+    
+    # בדיקת יתרה התחלתית
+    if not targets.get('יתרה_התחלתית', {}).get('is_balanced', True):
+        target_init = targets['יתרה_התחלתית'].get('target_combined', 0)
+        recommendations.append(f"💰 הגדל יתרה התחלתית ל-**₪{target_init:,.0f}**")
+    
+    # בדיקת דמי מנוי
+    if not targets.get('דמי_מנוי', {}).get('is_balanced_combined', True):
+        target_fee = targets['דמי_מנוי'].get('target_combined')
+        if target_fee:
+            recommendations.append(f"💳 העלה דמי מנוי ל-**₪{target_fee:,.0f}**/חודש")
+    
+    # בדיקת גובה הלוואה
+    if not targets.get('גובה_הלוואה', {}).get('is_balanced_combined', True):
+        target_loan = targets['גובה_הלוואה'].get('target_combined')
+        if target_loan:
+            recommendations.append(f"🏦 הפחת הלוואה ל-**₪{target_loan:,.0f}**")
+    
+    # בדיקת תשלומים
+    if not targets.get('תשלומים', {}).get('is_balanced_combined', True):
+        target_rep = targets['תשלומים'].get('target_combined')
+        if target_rep:
+            recommendations.append(f"📆 הגדל תשלומים ל-**{target_rep:,.0f}** חודשים")
+    
+    if recommendations:
+        st.warning("**🎯 אפשרויות לאיזון הקרן:**")
+        for rec in recommendations:
+            st.markdown(f"• {rec}")
+        st.caption("*ניתן לבחור אחת או יותר מהאפשרויות*")
+    else:
+        st.success("**✅ הקרן מאוזנת!** לא נדרשים שינויים.")
+    
+    # הסבר
+    with st.expander("ℹ️ איך המחשבון עובד?"):
+        st.markdown("""
+### אלגוריתם החישוב
+
+המחשבון משתמש ב**חיפוש בינארי** למציאת הערך האופטימלי:
+
+1. **לכל פרמטר** - מריץ סימולציה מלאה עם ערכים שונים
+2. **מוצא את הערך** שגורם ליתרה המינימלית להיות ≥ 0
+3. **מציג המלצות** לשינויים הנדרשים
+
+### סוגי איזון
+
+| סמל | משמעות |
+|-----|---------|
+| ✅ | מאוזן - לא נדרש שינוי |
+| 🟡 | גירעון קטן - ניתן לאזן בקלות |
+| 🔴 | גירעון משמעותי - נדרש שינוי גדול |
+
+### טווחי חיפוש
+
+| פרמטר | טווח |
+|-------|-------|
+| דמי מנוי | 50 - 2,000 ₪ |
+| גובה הלוואה | 10,000 - 500,000 ₪ |
+| תשלומים | 12 - 240 חודשים |
+| אחוז הלוואה | 1 - 100% |
+        """)
 
