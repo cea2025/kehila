@@ -145,14 +145,18 @@ def init_session_state():
         st.session_state.fee_refund_percentage = 90  # 90% החזר בילד אחרון
     
     
+    # =======================================================================
     # טבלת שנתונים קיימים (2006-2025)
+    # סה"כ 20 שנתונים × 80 ילדים = 1,600 ילדים קיימים
+    # דמי מנוי: לפי ילד (לא משפחתי). אם חלוקה למשפחות פעילה - מחלקים
+    # אין מענקים או החזרים לקיימים (רק למשפחות חדשות)
+    # =======================================================================
     if 'df_existing_cohorts' not in st.session_state:
-        birth_years = list(range(2006, 2026))  # 2006-2025
+        birth_years = list(range(2006, 2026))  # 2006-2025 = 20 שנתונים
         wedding_age = st.session_state.wedding_age
         
         # דמי מנוי לפי קרבה לחתונה (יותר קרוב = יותר יקר)
         fees = []
-        births = []
         for year in birth_years:
             years_to_wedding = (year + wedding_age) - 2026
             if years_to_wedding <= 0:
@@ -166,10 +170,9 @@ def init_session_state():
             else:
                 fee = 125
             fees.append(fee)
-            
-            # מספר נולדים (גדל עם השנים)
-            base_births = 80 + (year - 2006) * 3
-            births.append(base_births)
+        
+        # מספר נולדים: קבוע 80 ילדים לכל שנתון
+        births = [80] * len(birth_years)
         
         st.session_state.df_existing_cohorts = pd.DataFrame({
             'שנת_לידה': birth_years,
@@ -234,12 +237,16 @@ def calculate_full_projection():
     active_fee_payers = {}
     member_counter = 0
     
-    # מעקב אחר משפחות חדשות לחישוב מענק בילד אחרון
+    # מעקב אחר משפחות חדשות לחישוב מענק בילד אחרון (רק לחדשות!)
     # {family_id: {wedding_year, total_fees_paid, children_married, total_children, last_child_wedding_year}}
     new_families_tracking = {}
     family_counter = 0
     
-    # עיבוד שנתונים קיימים - הוספה לרשימת משלמי דמי מנוי
+    # =======================================================================
+    # עיבוד שנתונים קיימים (2006-2025) - הוספה לרשימת משלמי דמי מנוי
+    # דמי מנוי: לפי ילד. אם חלוקה למשפחות פעילה - מחלקים מספר משלמים
+    # אין מענקים לקיימים - רק הלוואות והחזרים
+    # =======================================================================
     for _, cohort in df_cohorts.iterrows():
         wedding_year = int(cohort['שנת_חתונה'])
         num_children = int(cohort['נולדים'])
@@ -367,7 +374,8 @@ def calculate_full_projection():
             years_between_children = months_between / 12
             
             for child_num in range(int(family_info['total_children'])):
-                child_wedding_year = int(first_child_wedding + child_num * years_between_children)
+                # עיגול נכון לשנת חתונה של ילד (months_between/12 יכול להיות שברי)
+                child_wedding_year = int(first_child_wedding + round(child_num * years_between_children))
                 
                 if child_wedding_year == year:
                     is_last_child = (child_num == family_info['total_children'] - 1)
@@ -440,8 +448,9 @@ def calculate_full_projection():
         members_to_remove = []
         
         for member_id, member_info in active_fee_payers.items():
-            # למשפחות חדשות - מתחילים לשלם רק אחרי לידת ילד ראשון
-            if member_info.get('is_new_family') and member_info.get('fee_start_year', 0) > year:
+            # למשפחות חדשות - מתחילים לשלם משנת לידת ילד ראשון (כולל)
+            fee_start = member_info.get('fee_start_year', 0)
+            if member_info.get('is_new_family') and fee_start > year:
                 continue
                 
             if member_info['years_left'] > 0:
