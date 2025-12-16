@@ -20,14 +20,63 @@ st.set_page_config(
     page_title="תכנון קהילה",
     page_icon="💰",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"  # סגור כברירת מחדל - טוב יותר למובייל
 )
 
 # =============================================================================
-# Viewport Meta Tag for Mobile
+# Viewport Meta Tag for Mobile + Sidebar Helper
 # =============================================================================
 st.markdown("""
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<!-- כפתור עזרה צף למובייל - מראה איפה הסיידבר -->
+<style>
+    .mobile-sidebar-hint {
+        display: none;
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 30px;
+        font-size: 14px;
+        font-weight: bold;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        z-index: 9999;
+        cursor: pointer;
+        animation: pulse 2s infinite;
+        direction: rtl;
+    }
+    
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    @media (max-width: 768px) {
+        .mobile-sidebar-hint {
+            display: block;
+        }
+    }
+</style>
+
+<div class="mobile-sidebar-hint" onclick="this.style.display='none'">
+    ⚙️ לחץ > בפינה למעלה להגדרות
+</div>
+
+<script>
+    // הסתר את הרמז אחרי 8 שניות
+    setTimeout(function() {
+        var hint = document.querySelector('.mobile-sidebar-hint');
+        if (hint) {
+            hint.style.opacity = '0';
+            hint.style.transition = 'opacity 0.5s';
+            setTimeout(function() { hint.style.display = 'none'; }, 500);
+        }
+    }, 8000);
+</script>
 """, unsafe_allow_html=True)
 
 # =============================================================================
@@ -148,22 +197,36 @@ st.markdown("""
        Mobile Styles (<768px)
        ============================================ */
     @media (max-width: 767px) {
-        /* Hide sidebar on mobile by default - user can still toggle */
+        /* הסיידבר במובייל - כאשר סגור, התוכן הראשי נראה */
+        /* כאשר פתוח - מכסה את כל המסך כ-overlay */
         section[data-testid="stSidebar"] {
-            width: 100% !important;
-            min-width: 100% !important;
+            width: 85vw !important;
+            min-width: 85vw !important;
+            max-width: 85vw !important;
         }
         
-        /* When sidebar is visible, make it full width */
         section[data-testid="stSidebar"] > div {
-            width: 100% !important;
+            width: 85vw !important;
         }
         
-        /* Main content adjustments */
+        /* כפתור סגירה גדול יותר בסיידבר */
+        section[data-testid="stSidebar"] button[kind="header"] {
+            font-size: 24px !important;
+            padding: 10px !important;
+        }
+        
+        /* Main content adjustments - always visible */
         .main .block-container {
             padding-left: 0.5rem !important;
             padding-right: 0.5rem !important;
             padding-top: 1rem !important;
+            width: 100% !important;
+        }
+        
+        /* וודא שהתוכן הראשי לא מוסתר */
+        .main {
+            width: 100% !important;
+            margin-left: 0 !important;
         }
         
         /* Title smaller on mobile */
@@ -184,24 +247,26 @@ st.markdown("""
             font-size: 16px !important;
         }
         
-        /* Metrics - compact on mobile */
+        /* Metrics - compact on mobile, 2 columns */
         [data-testid="stMetricValue"] {
-            font-size: 1.2rem !important;
+            font-size: 1.1rem !important;
         }
         
         [data-testid="stMetricLabel"] {
-            font-size: 0.8rem !important;
+            font-size: 0.75rem !important;
         }
         
-        /* Make metrics stack in single column */
+        /* Make metrics 2 columns on mobile */
         [data-testid="stHorizontalBlock"] {
             flex-wrap: wrap !important;
+            gap: 0.5rem !important;
         }
         
         [data-testid="stHorizontalBlock"] > div {
-            flex: 1 1 100% !important;
-            min-width: 100% !important;
-            margin-bottom: 0.5rem;
+            flex: 1 1 45% !important;
+            min-width: 45% !important;
+            max-width: 48% !important;
+            margin-bottom: 0.25rem;
         }
         
         /* Tabs scrollable on mobile */
@@ -211,6 +276,7 @@ st.markdown("""
             -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
             -ms-overflow-style: none;
+            padding-bottom: 5px;
         }
         
         .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar {
