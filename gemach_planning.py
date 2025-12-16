@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-מערכת תכנון פיננסי לגמ"ח קהילתי
+מערכת תכנון פיננסי לקהילה
 ===================================
-אפליקציית Streamlit לתכנון וניתוח תזרים מזומנים של גמ"ח קהילתי
+אפליקציית Streamlit לתכנון וניתוח תזרים מזומנים של קהילה
 """
 
 import streamlit as st
@@ -17,7 +17,7 @@ import hashlib
 # הגדרות עמוד
 # =============================================================================
 st.set_page_config(
-    page_title="תכנון גמ\"ח קהילתי",
+    page_title="תכנון קהילה",
     page_icon="💰",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -298,7 +298,7 @@ def calculate_full_projection():
                 cohort_loans += loans_given * loan_amount
                 cohort_loan_count += loans_given
         
-        # 2. משפחות חדשות - לא מקבלות הלוואה בעצמן! רק נרשמות לגמ"ח
+        # 2. משפחות חדשות - לא מקבלות הלוואה בעצמן! רק נרשמות לקהילה
         # הלוואה תינתן רק לילדים שלהן כשיתחתנו (בעוד ~20 שנה)
         new_families_registered = new_couples  # מספר משפחות שנרשמו השנה
         
@@ -671,7 +671,7 @@ with st.sidebar:
 # =============================================================================
 # תוכן ראשי - טאבים
 # =============================================================================
-st.title("💰 מערכת תכנון פיננסי לגמ\"ח קהילתי")
+st.title("💰 מערכת תכנון פיננסי לקהילה")
 st.markdown("---")
 
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
@@ -1436,7 +1436,7 @@ with tab7:
     st.download_button(
         "⬇️ הורד דוח Excel מלא",
         output.getvalue(),
-        "דוח_מלא_גמח.xlsx",
+        "דוח_מלא_קהילה.xlsx",
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True
     )
@@ -1482,6 +1482,6 @@ with tab7:
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center; color: #888; font-size: 14px;">
-    💰 מערכת תכנון פיננסי לגמ"ח קהילתי | נבנה עם ❤️ ב-Streamlit
+    💰 מערכת תכנון פיננסי לקהילה | נבנה עם ❤️ ב-Streamlit
 </div>
 """, unsafe_allow_html=True)
