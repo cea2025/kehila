@@ -54,7 +54,8 @@ def init_session_state():
         st.session_state.default_repayment_months = 100
     
     if 'default_loan_percentage' not in st.session_state:
-        st.session_state.default_loan_percentage = 100
+        # מודל 11%: בכל רגע נתון רק ~11% מהחברים לוקחים הלוואה חדשה
+        st.session_state.default_loan_percentage = 11
     
     if 'default_family_fee' not in st.session_state:
         st.session_state.default_family_fee = 300
@@ -215,20 +216,21 @@ def _render_sidebar_new():
         st.rerun()
     
     new_loan_pct = st.number_input(
-        "אחוז מקבלי הלוואה (%)",
+        "אחוז לוקחי הלוואה בשנה (%)",
         min_value=0,
         max_value=100,
         value=st.session_state.default_loan_percentage,
-        step=5,
-        key="new_loan_pct_input"
+        step=1,
+        key="new_loan_pct_input",
+        help="מודל 11%: בכל שנה ~11% מהמשפחות לוקחות הלוואה (חתונות פרוסות על 20 שנה)"
     )
     if new_loan_pct != st.session_state.default_loan_percentage:
         st.session_state.default_loan_percentage = new_loan_pct
         st.session_state.df_yearly_params['אחוז_לוקחי_הלוואה'] = new_loan_pct
         st.rerun()
     
-    # דמי מנוי ומענק
-    st.markdown("##### 💳 דמי מנוי ומענק")
+    # דמי מנוי
+    st.markdown("##### 💳 דמי מנוי")
     new_family_fee = st.number_input(
         "דמי מנוי משפחתי (₪/חודש)",
         min_value=100,
@@ -242,14 +244,22 @@ def _render_sidebar_new():
         st.session_state.df_yearly_params['דמי_מנוי_משפחתי'] = new_family_fee
         st.rerun()
     
-    st.session_state.fee_refund_percentage = st.number_input(
-        "אחוז החזר מענק בילד אחרון (%)",
-        min_value=0,
-        max_value=100,
-        value=st.session_state.fee_refund_percentage,
-        step=5,
-        help="אחוז ההחזר מדמי המנוי שהמשפחה שילמה"
-    )
+    # הסבר על מודל 11%
+    with st.expander("ℹ️ מודל 11% - הסבר"):
+        st.markdown("""
+        **למה 11%?**
+        
+        - משפחה ממוצעת: 8 ילדים
+        - חתונות פרוסות על ~20 שנה
+        - חתונה כל 2.5 שנים בממוצע
+        - תקופת חברות: ~47 שנה
+        
+        בכל שנה נתונה, רק ~11% מהמשפחות
+        נמצאות בשנת חתונה ולוקחות הלוואה.
+        
+        **מוכח בפועל** בגמח"ים ותיקים 
+        (קרלין, בעלזא ועוד) עם עודף גדל!
+        """)
 
 
 def _render_sidebar_tools():

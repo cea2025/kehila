@@ -121,25 +121,25 @@ def render_existing_tab(df_existing: pd.DataFrame):
 
 def render_new_tab(df_new: pd.DataFrame):
     """
-    טאב חדשות - משפחות שמצטרפות מ-2026
+    טאב חדשות - משפחות שמצטרפות מ-2026 (מודל 11%)
     """
     st.header("👨‍👩‍👧‍👦 משפחות חדשות")
-    st.markdown("משפחות שמצטרפות מ-2026 ומשלמות דמי מנוי משפחתי")
+    st.markdown("**מודל 11%**: בכל שנה ~11% מהמשפחות לוקחות הלוואה (חתונות פרוסות על 20 שנה)")
     
     # === Metrics ===
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        total_loans = df_new['כסף_יוצא'].sum()
-        st.metric("סה\"כ הלוואות+מענקים", f"₪{total_loans/1e6:.1f}M")
+        total_loans = df_new['הלוואות_סכום'].sum()
+        st.metric("סה\"כ הלוואות", f"₪{total_loans/1e6:.1f}M")
     with col2:
         total_fees = df_new['דמי_מנוי'].sum()
         st.metric("סה\"כ דמי מנוי", f"₪{total_fees/1e6:.1f}M")
     with col3:
-        max_payers = df_new['משלמי_דמי_מנוי'].max()
-        st.metric("מקסימום משלמים", f"{max_payers:,.0f}")
+        max_families = df_new['משפחות_מצטברות'].max()
+        st.metric("משפחות מצטברות", f"{max_families:,.0f}")
     with col4:
         total_families = df_new['משפחות_נרשמות'].sum()
-        st.metric("סה\"כ משפחות", f"{total_families:,.0f}")
+        st.metric("סה\"כ הצטרפו", f"{total_families:,.0f}")
     
     st.markdown("---")
     
@@ -176,15 +176,17 @@ def render_new_tab(df_new: pd.DataFrame):
                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
     st.plotly_chart(fig2, use_container_width=True)
     
-    # === גרף 3: מענקים ===
-    st.subheader("🎁 מענקים (החזר דמי מנוי בילד אחרון)")
+    # === גרף 3: משפחות מצטברות ===
+    st.subheader("👨‍👩‍👧‍👦 משפחות מצטברות (בסיס למודל 11%)")
     fig3 = go.Figure()
-    fig3.add_trace(go.Bar(
-        x=df_new['שנה'], y=df_new['מענקים_סכום'],
-        name='מענקים', marker_color='#10B981',
-        hovertemplate='<b>שנה:</b> %{x}<br><b>מענקים:</b> ₪%{y:,.0f}<extra></extra>'
+    fig3.add_trace(go.Scatter(
+        x=df_new['שנה'], y=df_new['משפחות_מצטברות'],
+        mode='lines+markers', name='משפחות מצטברות',
+        line=dict(color='#8B5CF6', width=3),
+        fill='tozeroy', fillcolor='rgba(139, 92, 246, 0.2)',
+        hovertemplate='<b>שנה:</b> %{x}<br><b>משפחות:</b> %{y:,.0f}<extra></extra>'
     ))
-    fig3.update_layout(height=350, xaxis_title="שנה", yaxis_title="סכום מענקים (₪)")
+    fig3.update_layout(height=350, xaxis_title="שנה", yaxis_title="משפחות מצטברות")
     st.plotly_chart(fig3, use_container_width=True)
     
     # === גרף 4: דמי מנוי ===
