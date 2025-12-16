@@ -131,6 +131,13 @@ def render_new_tab(df_new: pd.DataFrame):
 הלוואות מתחילות ב-2046, מתייצב על ~11% אחרי 50 שנה.
 """)
     
+    # הצגת מצב פיזור גיל נישואין
+    dist_mode = st.session_state.distribution_mode
+    if dist_mode == "bell":
+        st.info("🔔 **פיזור פעמון פעיל** – חתונות מפוזרות על פני 10 שנים סביב גיל הבסיס. זה מרכך את שיא ההלוואות ומפחית גירעון.")
+    elif dist_mode == "custom":
+        st.info("✏️ **פיזור מותאם אישית פעיל** – חתונות מפוזרות לפי הגדרה ידנית.")
+    
     # === Metrics ===
     col1, col2, col3, col4 = st.columns(4)
     with col1:

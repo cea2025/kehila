@@ -25,13 +25,15 @@ def compute_projections():
         repayment_months=st.session_state.existing_repayment_months
     )
     
-    # === חדשות ===
+    # === חדשות (עם תמיכה בפיזור גיל נישואין) ===
     df_new = compute_new_projection(
         df_yearly_params=st.session_state.df_yearly_params,
         wedding_age=st.session_state.wedding_age,
         avg_children=st.session_state.avg_children_new_family,
         months_between_children=st.session_state.months_between_children,
-        fee_refund_percentage=st.session_state.fee_refund_percentage
+        fee_refund_percentage=st.session_state.fee_refund_percentage,
+        distribution_mode=st.session_state.distribution_mode,
+        distribution_df=st.session_state.distribution_df if st.session_state.distribution_mode != "none" else None
     )
     
     # === מאוחד ===

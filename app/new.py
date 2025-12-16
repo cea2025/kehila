@@ -7,20 +7,22 @@ new.py - לוגיקת חישוב למשפחות חדשות
 בקרן חדשה שמתחילה מאפס, משפחות צעירות (גיל ~20) מצטרפות ומתחילות
 לקחת הלוואות רק אחרי wedding_age שנים כשהילדים מתחתנים.
 
+תמיכה בפיזור גיל נישואין (פעמון):
+==================================
+במקום להניח שכולם מתחתנים בגיל 21 בדיוק, אפשר להגדיר
+פיזור ריאליסטי סביב הגיל הממוצע (למשל: 5% בגיל 19, 15% בגיל 20, וכו').
+זה יוצר תת-קוהורטות לכל קוהורטה ראשית.
+
 ציר הזמן למשפחה טיפוסית:
 - שנים 0-20: משלמים דמי חברות, לא לוקחים הלוואות (הילדים קטנים)
 - שנים 21-40: תקופת חתונות - לוקחים 0.4 הלוואות בשנה (8 ילדים / 20 שנה)
 - שנים 41-48: ממשיכים לשלם דמי חברות עד סוף החזר ההלוואה האחרונה
 
 תקופת חברות כוללת = wedding_age + borrowing_years + repayment_years ≈ 48 שנה
-
-תוצאה צפויה לקרן חדשה:
-- שנים 1-20: רק דמי חברות → עודף
-- שנים 21-30: הלוואות מתחילות → גירעון זמני
-- שנים 30+: החזרים גדלים → עודף גדל
 """
 
 import pandas as pd
+from typing import Optional
 
 
 def compute_new_projection(
@@ -30,7 +32,9 @@ def compute_new_projection(
     months_between_children: int = 30,
     fee_refund_percentage: float = 0,  # לא בשימוש במודל קוהורטות
     start_year: int = 2026,
-    end_year: int = 2075
+    end_year: int = 2075,
+    distribution_mode: str = "none",
+    distribution_df: Optional[pd.DataFrame] = None
 ) -> pd.DataFrame:
     """
     חישוב תזרים מזומנים למשפחות חדשות - מודל קוהורטות מדויק
@@ -41,6 +45,10 @@ def compute_new_projection(
     - כל קוהורטה לוקחת loans_per_year הלוואות בשנה בממוצע
     - מעקב החזרים לפי קוהורטה + שנת מתן
     
+    תמיכה בפיזור גיל נישואין:
+    - כאשר distribution_mode != "none", כל קוהורטה מתחלקת לתת-קוהורטות
+    - כל תת-קוהורטה מתחילה לקחת הלוואות בגיל wedding_age + סטייה
+    
     Args:
         df_yearly_params: טבלת פרמטרים שנתיים
         wedding_age: גיל חתונה (שנים מהצטרפות עד חתונה ראשונה)
@@ -49,6 +57,8 @@ def compute_new_projection(
         fee_refund_percentage: לא בשימוש במודל זה (מענקים בוטלו)
         start_year: שנת התחלה
         end_year: שנת סיום
+        distribution_mode: "none", "bell", או "custom"
+        distribution_df: טבלת פיזור (סטייה_שנים, אחוז) - נדרש אם distribution_mode != "none"
     
     Returns:
         DataFrame עם תזרים שנתי מפורט
@@ -69,11 +79,32 @@ def compute_new_projection(
     loans_per_year_per_family = avg_children / borrowing_years
     
     # ======================================================
-    # מבנה נתונים לקוהורטות
+    # הכנת טבלת פיזור גיל נישואין
+    # ======================================================
+    # מבנה: [(סטייה_שנים, אחוז), ...]
+    if distribution_mode == "none" or distribution_df is None:
+        # ללא פיזור: כולם בגיל הבסיס
+        sub_cohort_distribution = [(0, 100.0)]
+    else:
+        # פיזור פעמון: כל תת-קוהורטה עם גיל שונה
+        sub_cohort_distribution = [
+            (int(row['סטייה_שנים']), float(row['אחוז']))
+            for _, row in distribution_df.iterrows()
+            if row['אחוז'] > 0  # רק אם יש אחוז חיובי
+        ]
+    
+    # ======================================================
+    # מבנה נתונים לקוהורטות עם תת-קוהורטות
     # ======================================================
     # cohorts[join_year] = {
-    #     'size': מספר משפחות שהצטרפו,
-    #     'loans_given': {year: {'count': מספר הלוואות, 'amount': סכום, 'years_left': שנות החזר}}
+    #     'total_size': מספר משפחות שהצטרפו,
+    #     'sub_cohorts': {
+    #         deviation: {
+    #             'size': מספר משפחות בתת-קוהורטה,
+    #             'wedding_age': גיל חתונה ספציפי,
+    #             'loans_given': {year: {'count': מספר הלוואות, ...}}
+    #         }
+    #     }
     # }
     cohorts = {}
     
@@ -98,99 +129,103 @@ def compute_new_projection(
         family_fee = float(row['דמי_מנוי_משפחתי'])
         
         # --------------------------------------------------
-        # חישוב תקופת חברות כוללת (דינמי!)
-        # --------------------------------------------------
-        # = שנים עד חתונה ראשונה + שנות חתונות + שנות החזר אחרונות
-        membership_years = wedding_age + borrowing_years + repayment_years
-        
-        # --------------------------------------------------
-        # הוספת קוהורטה חדשה
+        # הוספת קוהורטה חדשה עם תת-קוהורטות
         # --------------------------------------------------
         if new_families > 0:
+            sub_cohorts = {}
+            for deviation, pct in sub_cohort_distribution:
+                sub_size = new_families * (pct / 100)
+                if sub_size > 0:
+                    sub_cohorts[deviation] = {
+                        'size': sub_size,
+                        'wedding_age': wedding_age + deviation,
+                        'loans_given': {}
+                    }
+            
             cohorts[year] = {
-                'size': new_families,
-                'loans_given': {}  # יתמלא כשהקוהורטה תתחיל לקחת הלוואות
+                'total_size': new_families,
+                'sub_cohorts': sub_cohorts
             }
         
         # --------------------------------------------------
-        # חישוב משלמי דמי חברות
+        # חישוב משלמי דמי חברות (מכל הקוהורטות והתת-קוהורטות)
         # --------------------------------------------------
-        # כל הקוהורטות שעדיין בתקופת החברות (פחות מ-membership_years שנים)
+        # כל המשפחות משלמות דמי חברות, גם אלה שלא מתחתנים
         fee_payers = 0
         for join_year, cohort_info in cohorts.items():
-            age = year - join_year  # גיל הקוהורטה
-            if 0 <= age < membership_years:
-                fee_payers += cohort_info['size']
+            age = year - join_year
+            
+            # לכל תת-קוהורטה יש תקופת חברות משלה
+            for deviation, sub_info in cohort_info['sub_cohorts'].items():
+                sub_wedding_age = sub_info['wedding_age']
+                # תקופת חברות = גיל חתונה + שנות הלוואות + שנות החזר
+                sub_membership_years = sub_wedding_age + borrowing_years + repayment_years
+                
+                if 0 <= age < sub_membership_years:
+                    fee_payers += sub_info['size']
         
         total_fees = fee_payers * family_fee * 12
         
         # --------------------------------------------------
-        # חישוב הלוואות חדשות (לפי קוהורטה)
+        # חישוב הלוואות חדשות (לפי תת-קוהורטה)
         # --------------------------------------------------
-        # רק קוהורטות בתקופת ההלוואות לוקחות הלוואות
         total_loans_count = 0
         total_loans_amount = 0
         
         for join_year, cohort_info in cohorts.items():
-            age = year - join_year  # גיל הקוהורטה
+            age = year - join_year
             
-            # בדיקה אם הקוהורטה בתקופת ההלוואות
-            # (מגיל wedding_age עד wedding_age + borrowing_years)
-            borrowing_start = wedding_age
-            borrowing_end = wedding_age + borrowing_years
-            
-            if borrowing_start <= age < borrowing_end:
-                # חישוב מספר הלוואות מקוהורטה זו השנה
-                base_loans = cohort_info['size'] * loans_per_year_per_family
+            for deviation, sub_info in cohort_info['sub_cohorts'].items():
+                sub_wedding_age = sub_info['wedding_age']
                 
-                # הכפלה באחוז לוקחי הלוואה (מהפרמטרים)
-                actual_loans = base_loans * (loan_percentage / 100)
-                actual_amount = actual_loans * loan_amount
+                # בדיקה אם התת-קוהורטה בתקופת ההלוואות
+                borrowing_start = sub_wedding_age
+                borrowing_end = sub_wedding_age + borrowing_years
                 
-                total_loans_count += actual_loans
-                total_loans_amount += actual_amount
-                
-                # שמירה במעקב הלוואות של הקוהורטה
-                if actual_loans > 0:
-                    cohort_info['loans_given'][year] = {
-                        'count': actual_loans,
-                        'amount': actual_amount,
-                        'years_left': repayment_years,
-                        'yearly_payment': actual_amount / repayment_years
-                    }
+                if borrowing_start <= age < borrowing_end:
+                    # חישוב מספר הלוואות מתת-קוהורטה זו השנה
+                    base_loans = sub_info['size'] * loans_per_year_per_family
+                    
+                    # הכפלה באחוז לוקחי הלוואה
+                    actual_loans = base_loans * (loan_percentage / 100)
+                    actual_amount = actual_loans * loan_amount
+                    
+                    total_loans_count += actual_loans
+                    total_loans_amount += actual_amount
+                    
+                    # שמירה במעקב הלוואות של התת-קוהורטה
+                    if actual_loans > 0:
+                        sub_info['loans_given'][year] = {
+                            'count': actual_loans,
+                            'amount': actual_amount,
+                            'years_left': repayment_years,
+                            'yearly_payment': actual_amount / repayment_years
+                        }
         
         # --------------------------------------------------
-        # חישוב החזרי הלוואות (מכל הקוהורטות)
+        # חישוב החזרי הלוואות (מכל התת-קוהורטות)
         # --------------------------------------------------
         total_repayments = 0
         
         for join_year, cohort_info in cohorts.items():
-            # לולאה על כל קבוצות ההלוואות של קוהורטה זו
-            loans_to_remove = []
-            
-            for loan_year, loan_info in cohort_info['loans_given'].items():
-                if loan_info['years_left'] > 0:
-                    # הוספת החזר שנתי
-                    total_repayments += loan_info['yearly_payment']
-                    
-                    # הפחתת שנה מהחזר
-                    loan_info['years_left'] -= 1
-                    
-                    # סימון הלוואה שנגמרה
-                    if loan_info['years_left'] <= 0:
-                        loans_to_remove.append(loan_year)
-            
-            # הסרת הלוואות שנגמרו (לחיסכון בזיכרון)
-            for ly in loans_to_remove:
-                del cohort_info['loans_given'][ly]
+            for deviation, sub_info in cohort_info['sub_cohorts'].items():
+                loans_to_remove = []
+                
+                for loan_year, loan_info in sub_info['loans_given'].items():
+                    if loan_info['years_left'] > 0:
+                        total_repayments += loan_info['yearly_payment']
+                        loan_info['years_left'] -= 1
+                        
+                        if loan_info['years_left'] <= 0:
+                            loans_to_remove.append(loan_year)
+                
+                for ly in loans_to_remove:
+                    del sub_info['loans_given'][ly]
         
         # --------------------------------------------------
         # חישוב סיכומים לתצוגה
         # --------------------------------------------------
-        # משפחות מצטברות = סך כל המשפחות שהצטרפו (לא רק משלמים)
-        cumulative_families = sum(c['size'] for c in cohorts.values())
-        
-        # אחוז לווים מכלל החברים המשלמים
+        cumulative_families = sum(c['total_size'] for c in cohorts.values())
         borrower_percentage = (total_loans_count / fee_payers * 100) if fee_payers > 0 else 0
         
         # --------------------------------------------------
@@ -207,10 +242,10 @@ def compute_new_projection(
             'שנה': year,
             'משפחות_נרשמות': new_families,
             'משפחות_מצטברות': cumulative_families,
-            'משלמי_דמי_מנוי': fee_payers,
+            'משלמי_דמי_מנוי': int(fee_payers),
             'הלוואות_ניתנו': int(total_loans_count),
             'אחוז_לווים': round(borrower_percentage, 1),
-            'מענקים': 0,  # מענקים בוטלו במודל קוהורטות
+            'מענקים': 0,
             'כסף_יוצא': money_out,
             'הלוואות_סכום': int(total_loans_amount),
             'מענקים_סכום': 0,
