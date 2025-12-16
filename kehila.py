@@ -197,36 +197,81 @@ st.markdown("""
        Mobile Styles (<768px)
        ============================================ */
     @media (max-width: 767px) {
-        /* הסיידבר במובייל - כאשר סגור, התוכן הראשי נראה */
-        /* כאשר פתוח - מכסה את כל המסך כ-overlay */
+        /* סיידבר כ-overlay במובייל */
         section[data-testid="stSidebar"] {
-            width: 85vw !important;
-            min-width: 85vw !important;
-            max-width: 85vw !important;
+            position: fixed !important;
+            top: 0 !important;
+            right: 0 !important;
+            left: auto !important;
+            width: 90vw !important;
+            max-width: 90vw !important;
+            height: 100vh !important;
+            z-index: 9999 !important;
+            background: white !important;
+            box-shadow: -5px 0 20px rgba(0,0,0,0.3) !important;
+            transform: translateX(100%) !important;
+            transition: transform 0.3s ease !important;
+        }
+        
+        /* כאשר הסיידבר פתוח (יש לו attribute מתאים) */
+        section[data-testid="stSidebar"][aria-expanded="true"],
+        section[data-testid="stSidebar"]:not([aria-expanded="false"]):not([data-collapsed="true"]) {
+            transform: translateX(0) !important;
+        }
+        
+        /* הסתרה כאשר סגור */
+        section[data-testid="stSidebar"][aria-expanded="false"],
+        section[data-testid="stSidebar"][data-collapsed="true"] {
+            transform: translateX(100%) !important;
         }
         
         section[data-testid="stSidebar"] > div {
-            width: 85vw !important;
+            width: 90vw !important;
+            height: 100% !important;
+            overflow-y: auto !important;
         }
         
-        /* כפתור סגירה גדול יותר בסיידבר */
+        /* כפתור סגירה גדול יותר */
         section[data-testid="stSidebar"] button[kind="header"] {
-            font-size: 24px !important;
-            padding: 10px !important;
+            font-size: 28px !important;
+            padding: 15px !important;
         }
         
-        /* Main content adjustments - always visible */
+        /* התוכן הראשי תמיד ברוחב מלא */
+        .main {
+            width: 100vw !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
+        
         .main .block-container {
             padding-left: 0.5rem !important;
             padding-right: 0.5rem !important;
             padding-top: 1rem !important;
             width: 100% !important;
+            max-width: 100% !important;
         }
         
-        /* וודא שהתוכן הראשי לא מוסתר */
-        .main {
-            width: 100% !important;
-            margin-left: 0 !important;
+        /* כפתור פתיחה צף בולט */
+        [data-testid="collapsedControl"] {
+            position: fixed !important;
+            top: 10px !important;
+            right: 10px !important;
+            z-index: 9998 !important;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            border-radius: 50% !important;
+            width: 50px !important;
+            height: 50px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
+        }
+        
+        [data-testid="collapsedControl"] svg {
+            color: white !important;
+            width: 24px !important;
+            height: 24px !important;
         }
         
         /* Title smaller on mobile */
