@@ -121,10 +121,14 @@ def render_existing_tab(df_existing: pd.DataFrame):
 
 def render_new_tab(df_new: pd.DataFrame):
     """
-    טאב חדשות - משפחות שמצטרפות מ-2026 (מודל 11%)
+    טאב חדשות - משפחות שמצטרפות מ-2026 (מודל קוהורטות)
     """
     st.header("👨‍👩‍👧‍👦 משפחות חדשות")
-    st.markdown("**מודל 11%**: בכל שנה ~11% מהמשפחות לוקחות הלוואה (חתונות פרוסות על 20 שנה)")
+    st.markdown("""
+**מודל קוהורטות לקרן חדשה**: משפחות צעירות (גיל ~20) מצטרפות ומתחילות 
+לקחת הלוואות **רק אחרי 20 שנה** (כשהילדים מתחתנים). 
+הלוואות מתחילות ב-2046, מתייצב על ~11% אחרי 50 שנה.
+""")
     
     # === Metrics ===
     col1, col2, col3, col4 = st.columns(4)
@@ -176,31 +180,47 @@ def render_new_tab(df_new: pd.DataFrame):
                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
     st.plotly_chart(fig2, use_container_width=True)
     
-    # === גרף 3: משפחות מצטברות ===
-    st.subheader("👨‍👩‍👧‍👦 משפחות מצטברות (בסיס למודל 11%)")
+    # === גרף 3: אחוז לווים לאורך הזמן ===
+    st.subheader("📊 אחוז לווים מכלל החברים (מודל קוהורטות)")
+    st.caption("0% עד 2046, אח\"כ עלייה הדרגתית, מתייצב על ~11% אחרי 50 שנה")
     fig3 = go.Figure()
     fig3.add_trace(go.Scatter(
-        x=df_new['שנה'], y=df_new['משפחות_מצטברות'],
-        mode='lines+markers', name='משפחות מצטברות',
+        x=df_new['שנה'], y=df_new['אחוז_לווים'],
+        mode='lines+markers', name='אחוז לווים',
         line=dict(color='#8B5CF6', width=3),
         fill='tozeroy', fillcolor='rgba(139, 92, 246, 0.2)',
-        hovertemplate='<b>שנה:</b> %{x}<br><b>משפחות:</b> %{y:,.0f}<extra></extra>'
+        hovertemplate='<b>שנה:</b> %{x}<br><b>אחוז לווים:</b> %{y:.1f}%<extra></extra>'
     ))
-    fig3.update_layout(height=350, xaxis_title="שנה", yaxis_title="משפחות מצטברות")
+    fig3.add_hline(y=11, line_dash="dash", line_color="green", 
+                   annotation_text="יעד: 11%", annotation_position="right")
+    fig3.update_layout(height=350, xaxis_title="שנה", yaxis_title="אחוז לווים (%)")
     st.plotly_chart(fig3, use_container_width=True)
     
-    # === גרף 4: דמי מנוי ===
-    st.subheader("💳 דמי מנוי ממשפחות חדשות")
+    # === גרף 4: משפחות מצטברות ===
+    st.subheader("👨‍👩‍👧‍👦 משפחות מצטברות")
     fig4 = go.Figure()
     fig4.add_trace(go.Scatter(
+        x=df_new['שנה'], y=df_new['משפחות_מצטברות'],
+        mode='lines+markers', name='משפחות מצטברות',
+        line=dict(color='#10B981', width=3),
+        fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.2)',
+        hovertemplate='<b>שנה:</b> %{x}<br><b>משפחות:</b> %{y:,.0f}<extra></extra>'
+    ))
+    fig4.update_layout(height=350, xaxis_title="שנה", yaxis_title="משפחות מצטברות")
+    st.plotly_chart(fig4, use_container_width=True)
+    
+    # === גרף 5: דמי מנוי ===
+    st.subheader("💳 דמי מנוי ממשפחות חדשות")
+    fig5 = go.Figure()
+    fig5.add_trace(go.Scatter(
         x=df_new['שנה'], y=df_new['דמי_מנוי'],
         mode='lines+markers', name='דמי מנוי',
         line=dict(color='#EF4444', width=3),
         fill='tozeroy', fillcolor='rgba(239, 68, 68, 0.2)',
         hovertemplate='<b>שנה:</b> %{x}<br><b>דמי מנוי:</b> ₪%{y:,.0f}<extra></extra>'
     ))
-    fig4.update_layout(height=350, xaxis_title="שנה", yaxis_title="דמי מנוי (₪)")
-    st.plotly_chart(fig4, use_container_width=True)
+    fig5.update_layout(height=350, xaxis_title="שנה", yaxis_title="דמי מנוי (₪)")
+    st.plotly_chart(fig5, use_container_width=True)
     
     # === טבלת פרמטרים שנתיים (עריכה) ===
     st.markdown("---")
