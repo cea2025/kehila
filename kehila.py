@@ -682,7 +682,133 @@ from app.projection import compute_projections
 from app.ui_tabs import render_existing_tab, render_new_tab, render_combined_tab, render_distribution_tab
 
 # =============================================================================
-# אתחול
+# עמוד פתיחה עם סיסמא
+# =============================================================================
+def render_login_page():
+    """עמוד פתיחה מעוצב עם הזנת סיסמא"""
+    
+    # סגנון מותאם לעמוד הפתיחה
+    st.markdown("""
+    <style>
+        .login-container {
+            max-width: 450px;
+            margin: 0 auto;
+            padding: 40px 30px;
+            background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            text-align: center;
+            direction: rtl;
+        }
+        .login-logo {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        .login-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 10px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .login-subtitle {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .login-divider {
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #667eea, #764ba2, transparent);
+            margin: 25px 0;
+            border-radius: 2px;
+        }
+        .feature-list {
+            text-align: right;
+            margin: 20px 0;
+            padding: 0 20px;
+        }
+        .feature-item {
+            padding: 8px 0;
+            color: #444;
+            font-size: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        .feature-item:last-child {
+            border-bottom: none;
+        }
+        .stTextInput > div > div > input {
+            text-align: center;
+            font-size: 24px;
+            letter-spacing: 8px;
+            font-weight: 600;
+        }
+        /* Hide sidebar on login page */
+        section[data-testid="stSidebar"] {
+            display: none;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # תוכן העמוד
+    st.markdown('<div class="login-logo">🏛️</div>', unsafe_allow_html=True)
+    st.markdown('<div class="login-title">קהילת ביאלא</div>', unsafe_allow_html=True)
+    st.markdown('<div class="login-subtitle">מערכת תכנון חתונות</div>', unsafe_allow_html=True)
+    st.markdown('<div class="login-divider"></div>', unsafe_allow_html=True)
+    
+    # תכונות המערכת
+    st.markdown("""
+    <div class="feature-list">
+        <div class="feature-item">📊 תחזיות פיננסיות מדויקות</div>
+        <div class="feature-item">👨‍👩‍👧‍👦 ניהול משפחות קיימות וחדשות</div>
+        <div class="feature-item">🔔 פיזור גילאי נישואין</div>
+        <div class="feature-item">📈 גרפים וניתוחים אינטראקטיביים</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('<div class="login-divider"></div>', unsafe_allow_html=True)
+    
+    # שדה הסיסמא
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        password = st.text_input(
+            "🔐 הזן סיסמא לכניסה",
+            type="password",
+            placeholder="••••••••••",
+            key="login_password"
+        )
+        
+        if st.button("🚀 כניסה למערכת", use_container_width=True, type="primary"):
+            if password == "0504105090":
+                st.session_state.authenticated = True
+                st.rerun()
+            elif password:
+                st.error("❌ סיסמא שגויה, נסה שוב")
+    
+    # פוטר
+    st.markdown("""
+    <div style="text-align: center; margin-top: 40px; color: #999; font-size: 12px;">
+        © 2025 קהילת ביאלא | כל הזכויות שמורות
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# =============================================================================
+# בדיקת אימות
+# =============================================================================
+if 'authenticated' not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+    render_login_page()
+    st.stop()
+
+# =============================================================================
+# אתחול (רק אחרי אימות)
 # =============================================================================
 init_session_state()
 
