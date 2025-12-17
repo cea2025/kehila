@@ -20,6 +20,9 @@ def init_session_state():
     if 'initial_balance' not in st.session_state:
         st.session_state.initial_balance = 0
     
+    if 'display_years' not in st.session_state:
+        st.session_state.display_years = 30
+    
     # =======================================================================
     # פרמטרים לקיימים
     # מודל פשוט: רשימת הלוואות לפי שנת הלוואה (2026-2046)
@@ -131,6 +134,15 @@ def _render_sidebar_global():
         value=st.session_state.initial_balance,
         step=50000,
         help="כמה כסף יש בקופה בתחילת 2026"
+    )
+    
+    st.session_state.display_years = st.slider(
+        "📊 שנים להצגה בגרפים",
+        min_value=10,
+        max_value=70,
+        value=st.session_state.display_years,
+        step=5,
+        help="כמה שנים להציג בגרפים (מ-2026)"
     )
     
     # כפתור איפוס

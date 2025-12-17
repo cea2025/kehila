@@ -15,11 +15,21 @@ from io import BytesIO
 from typing import Dict, Optional
 
 
+def _filter_by_display_years(df: pd.DataFrame) -> pd.DataFrame:
+    """סינון DataFrame לפי מספר השנים להצגה"""
+    display_years = st.session_state.get('display_years', 30)
+    max_year = 2026 + display_years - 1
+    return df[df['שנה'] <= max_year].copy()
+
+
 def render_existing_tab(df_existing: pd.DataFrame):
     """
     טאב קיימים - ילדים שנולדו 2005-2025
     """
-    st.header("👶 ילדים קיימים")
+    # סינון לפי שנים להצגה
+    df_existing = _filter_by_display_years(df_existing)
+    
+    st.header("ילדים קיימים")
     st.markdown("ילדים שנולדו 2005-2025, מקבלים הלוואה בשנים 2026-2046")
     
     # === Metrics ===
@@ -124,7 +134,10 @@ def render_new_tab(df_new: pd.DataFrame):
     """
     טאב חדשות - משפחות שמצטרפות מ-2026 (מודל קוהורטות)
     """
-    st.header("👨‍👩‍👧‍👦 משפחות חדשות")
+    # סינון לפי שנים להצגה
+    df_new = _filter_by_display_years(df_new)
+    
+    st.header("משפחות חדשות")
     st.markdown("""
 **מודל קוהורטות לקרן חדשה**: משפחות צעירות (גיל ~20) מצטרפות ומתחילות 
 לקחת הלוואות **רק אחרי 20 שנה** (כשהילדים מתחתנים). 
@@ -260,6 +273,11 @@ def render_combined_tab(df_combined: pd.DataFrame, df_existing: pd.DataFrame, df
     """
     טאב מאוחד - כולל ניתוח וייצוא
     """
+    # סינון לפי שנים להצגה
+    df_combined = _filter_by_display_years(df_combined)
+    df_existing = _filter_by_display_years(df_existing)
+    df_new = _filter_by_display_years(df_new)
+    
     st.header("📊 תמונה מאוחדת")
     
     # === Metrics ===
