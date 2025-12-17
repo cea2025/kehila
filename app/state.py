@@ -39,13 +39,13 @@ def init_session_state():
     # פרמטרים למשפחות חדשות
     # =======================================================================
     if 'wedding_age' not in st.session_state:
-        st.session_state.wedding_age = 21
+        st.session_state.wedding_age = 20
     
     if 'avg_children_new_family' not in st.session_state:
         st.session_state.avg_children_new_family = 8
     
     if 'months_between_children' not in st.session_state:
-        st.session_state.months_between_children = 30
+        st.session_state.months_between_children = 34
     
     if 'default_loan_amount' not in st.session_state:
         st.session_state.default_loan_amount = 100000
@@ -59,13 +59,13 @@ def init_session_state():
         st.session_state.default_loan_percentage = 100
     
     if 'default_family_fee' not in st.session_state:
-        st.session_state.default_family_fee = 300
+        st.session_state.default_family_fee = 375
     
     if 'fee_refund_percentage' not in st.session_state:
         st.session_state.fee_refund_percentage = 90
     
     # =======================================================================
-    # פיזור גיל נישואין (פעמון)
+    # פיזור גיל נישואין (פעמון) - למשפחות חדשות
     # =======================================================================
     if 'distribution_mode' not in st.session_state:
         # "none" = גיל קבוע, "bell" = פעמון סטנדרטי, "custom" = מותאם אישית
@@ -79,10 +79,22 @@ def init_session_state():
             'אחוז': [3, 8, 20, 20, 15, 12, 8, 5, 3, 1, 0]  # סה"כ 95%, 5% לא מתחתנים
         })
     
+    # =======================================================================
+    # פיזור גיל נישואין (פעמון) - לילדים קיימים
+    # =======================================================================
+    if 'existing_distribution_mode' not in st.session_state:
+        st.session_state.existing_distribution_mode = "none"
+    
+    if 'existing_distribution_df' not in st.session_state:
+        st.session_state.existing_distribution_df = pd.DataFrame({
+            'סטייה_שנים': [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8],
+            'אחוז': [3, 8, 20, 20, 15, 12, 8, 5, 3, 1, 0]
+        })
+    
     # טבלת פרמטרים שנתיים לחדשות (2026-2075)
     if 'df_yearly_params' not in st.session_state:
         years = list(range(2026, 2076))
-        growth_rate = 0.042
+        growth_rate = 0.05
         new_members_with_growth = [int(100 * ((1 + growth_rate) ** i)) for i in range(len(years))]
         st.session_state.df_yearly_params = pd.DataFrame({
             'שנה': years,
@@ -200,7 +212,7 @@ def _render_sidebar_new():
         min_value=12,
         max_value=60,
         value=st.session_state.months_between_children,
-        step=6
+        step=2
     )
     
     # הלוואות לחדשות
@@ -252,7 +264,7 @@ def _render_sidebar_new():
         min_value=100,
         max_value=5000,
         value=st.session_state.default_family_fee,
-        step=50,
+        step=25,
         key="new_family_fee_input"
     )
     if new_family_fee != st.session_state.default_family_fee:
@@ -260,96 +272,17 @@ def _render_sidebar_new():
         st.session_state.df_yearly_params['דמי_מנוי_משפחתי'] = new_family_fee
         st.rerun()
     
-    # פיזור גיל נישואין (פעמון)
-    with st.expander("🔔 פיזור גיל נישואין"):
-        st.caption("פיזור ריאליסטי של גילאי החתונה סביב הגיל הממוצע")
-        
-        distribution_mode = st.selectbox(
-            "מצב פיזור",
-            options=["none", "bell", "custom"],
-            format_func=lambda x: {"none": "❌ ללא פיזור (גיל קבוע)", "bell": "🔔 פעמון סטנדרטי", "custom": "✏️ מותאם אישית"}[x],
-            index=["none", "bell", "custom"].index(st.session_state.distribution_mode),
-            key="distribution_mode_select"
-        )
-        
-        if distribution_mode != st.session_state.distribution_mode:
-            st.session_state.distribution_mode = distribution_mode
-            st.rerun()
-        
-        if distribution_mode == "bell":
-            st.info("🔔 פעמון סטנדרטי: פיזור על 10 שנים סביב גיל הבסיס, 5% לא מתחתנים")
-            
-            # הצגת טבלת הפיזור (לא ניתן לעריכה)
-            import plotly.express as px
-            
-            df_dist = st.session_state.distribution_df.copy()
-            df_dist['גיל_יחסי'] = df_dist['סטייה_שנים'].apply(
-                lambda x: f"{'+' if x > 0 else ''}{x}"
-            )
-            
-            # גרף פעמון
-            fig = px.bar(
-                df_dist,
-                x='סטייה_שנים',
-                y='אחוז',
-                title=f"פיזור גיל חתונה סביב גיל {st.session_state.wedding_age}",
-                labels={'סטייה_שנים': 'סטייה מגיל הבסיס (שנים)', 'אחוז': 'אחוז ילדים (%)'},
-                color='אחוז',
-                color_continuous_scale='Blues'
-            )
-            fig.update_layout(
-                height=250,
-                showlegend=False,
-                coloraxis_showscale=False
-            )
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # הצגת טבלה קומפקטית
-            st.dataframe(
-                df_dist[['סטייה_שנים', 'אחוז']].T,
-                use_container_width=True,
-                height=100
-            )
-            st.caption("סה\"כ: 95% מתחתנים, 5% לא לוקחים הלוואה")
-        
-        elif distribution_mode == "custom":
-            st.warning("✏️ ערוך את טבלת הפיזור (סה\"כ האחוזים צריך להיות ≤100%)")
-            
-            edited_dist = st.data_editor(
-                st.session_state.distribution_df,
-                column_config={
-                    "סטייה_שנים": st.column_config.NumberColumn("סטייה (שנים)", min_value=-5, max_value=15),
-                    "אחוז": st.column_config.NumberColumn("אחוז (%)", min_value=0, max_value=100)
-                },
-                num_rows="dynamic",
-                use_container_width=True,
-                key="dist_editor"
-            )
-            
-            total_pct = edited_dist['אחוז'].sum()
-            if total_pct > 100:
-                st.error(f"⚠️ סה\"כ {total_pct}% > 100%! הפחת את האחוזים.")
-            else:
-                not_married_pct = 100 - total_pct
-                st.info(f"✅ סה\"כ מתחתנים: {total_pct}%, לא מתחתנים: {not_married_pct}%")
-            
-            st.session_state.distribution_df = edited_dist
-            
-            # גרף
-            import plotly.express as px
-            fig = px.bar(
-                edited_dist,
-                x='סטייה_שנים',
-                y='אחוז',
-                title="פיזור גיל חתונה (מותאם אישית)",
-                color='אחוז',
-                color_continuous_scale='Blues'
-            )
-            fig.update_layout(height=200, showlegend=False, coloraxis_showscale=False)
-            st.plotly_chart(fig, use_container_width=True)
-        
-        else:  # none
-            st.success(f"✅ כל הילדים מתחתנים בגיל {st.session_state.wedding_age} בדיוק")
+    # החזר דמי מנוי
+    st.markdown("##### 💸 החזר דמי מנוי")
+    st.session_state.fee_refund_percentage = st.number_input(
+        "אחוז החזר בחתונת ילד אחרון (%)",
+        min_value=0,
+        max_value=100,
+        value=st.session_state.fee_refund_percentage,
+        step=5,
+        key="fee_refund_input",
+        help="אחוז מדמי המנוי ששולמו שיוחזר למשפחה בחתונת הילד האחרון"
+    )
     
     # הסבר על מודל קוהורטות
     with st.expander("📖 הסבר מתמטי על המודל"):
@@ -470,7 +403,7 @@ def _render_sidebar_tools():
         "אחוז צמיחה שנתי (%)",
         min_value=-50.0,
         max_value=50.0,
-        value=4.2,
+        value=5.0,
         step=0.5,
         key="growth_rate_input"
     )

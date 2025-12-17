@@ -447,258 +447,257 @@ def render_combined_tab(df_combined: pd.DataFrame, df_existing: pd.DataFrame, df
     st.dataframe(df_combined, use_container_width=True, height=400)
 
 
-def render_balance_calculator_tab(targets: Dict[str, Dict[str, any]]):
+def render_distribution_tab():
     """
-    טאב מחשבון איזון אינטראקטיבי - כפתור לצד כל פרמטר
+    טאב פיזור גיל נישואין - 2 פעמונים: קיימות וחדשות
     """
-    from app.balance_calculator import (
-        get_current_min_balance,
-        find_balancing_fee,
-        find_balancing_loan,
-        find_balancing_repayment,
-        find_balancing_loan_percentage,
-        find_balancing_initial_balance
-    )
+    import plotly.express as px
     
-    st.header("🎯 מחשבון איזון אינטראקטיבי")
+    st.header("🔔 פיזור גיל נישואין")
     st.markdown("""
-**לחץ על הכפתור ליד כל פרמטר** כדי למצוא את הערך שמאזן את הקרן.
-
-החיפוש הבינארי ירוץ בזמן אמת ויציג את התוצאה.
+**פיזור ריאליסטי של גילאי החתונה** – במקום להניח שכולם מתחתנים באותו גיל בדיוק,
+אפשר להגדיר פיזור "פעמון" סביב גיל הבסיס. זה מרכך את שיא ההלוואות ומפחית גירעון.
 """)
     
-    # אתחול session_state לתוצאות
-    if 'balance_results' not in st.session_state:
-        st.session_state.balance_results = {}
-    
-    # חישוב מצב נוכחי
-    min_new, min_existing, min_combined = get_current_min_balance()
-    
-    # הצגת מצב נוכחי
-    st.markdown("### 📊 מצב נוכחי")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        color = "🟢" if min_new >= 0 else "🔴"
-        st.metric(f"{color} חדשות לבד", f"₪{min_new/1e6:,.1f}M")
-    with col2:
-        color = "🟢" if min_existing >= 0 else "🔴"
-        st.metric(f"{color} קיימות לבד", f"₪{min_existing/1e6:,.1f}M")
-    with col3:
-        color = "🟢" if min_combined >= 0 else "🔴"
-        st.metric(f"{color} מאוחד", f"₪{min_combined/1e6:,.1f}M")
-    
+    # =====================================================
+    # פעמון לקיימות
+    # =====================================================
     st.markdown("---")
+    st.subheader("👶 פיזור לילדים קיימים")
+    st.caption("ילדים שנולדו 2005-2025 - פיזור גיל חתונה סביב גיל 21")
     
-    # === 1. יתרה התחלתית ===
-    st.markdown("### 💰 יתרה התחלתית")
-    col1, col2, col3 = st.columns([2, 1, 2])
+    # אתחול session_state לקיימות
+    if 'existing_distribution_mode' not in st.session_state:
+        st.session_state.existing_distribution_mode = "none"
     
-    current_initial = st.session_state.initial_balance
+    if 'existing_distribution_df' not in st.session_state:
+        st.session_state.existing_distribution_df = pd.DataFrame({
+            'סטייה_שנים': [-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8],
+            'אחוז': [3, 8, 20, 20, 15, 12, 8, 5, 3, 1, 0]
+        })
+    
+    col1, col2 = st.columns([1, 2])
+    
     with col1:
-        st.metric("ערך נוכחי", f"₪{current_initial:,.0f}")
-    
-    with col2:
-        if st.button("🔍 חשב", key="btn_initial", use_container_width=True):
-            with st.spinner("מחפש ערך מאזן..."):
-                result = find_balancing_initial_balance()
-                st.session_state.balance_results['initial'] = result
-    
-    with col3:
-        if 'initial' in st.session_state.balance_results:
-            result = st.session_state.balance_results['initial']
-            if result == 0:
-                st.success("✅ לא נדרשת יתרה התחלתית!")
-            else:
-                st.warning(f"💰 נדרש: **₪{result:,.0f}**")
-        elif min_combined < 0:
-            st.info("לחץ 🔍 למציאת היתרה הנדרשת")
-        else:
-            st.success("✅ מאוזן!")
-    
-    st.markdown("---")
-    
-    # === 2. דמי מנוי ===
-    st.markdown("### 💳 דמי מנוי משפחתי")
-    col1, col2, col3 = st.columns([2, 1, 2])
-    
-    current_fee = float(st.session_state.df_yearly_params['דמי_מנוי_משפחתי'].iloc[0])
-    with col1:
-        st.metric("ערך נוכחי", f"₪{current_fee:,.0f}/חודש")
-    
-    with col2:
-        if st.button("🔍 חשב מאוחד", key="btn_fee", use_container_width=True):
-            with st.spinner("מחפש ערך מאזן..."):
-                result = find_balancing_fee('combined')
-                st.session_state.balance_results['fee'] = result
-    
-    with col3:
-        if 'fee' in st.session_state.balance_results:
-            result = st.session_state.balance_results['fee']
-            if result is None:
-                st.error("❌ לא ניתן לאזן בטווח 50-3000₪")
-            elif result <= current_fee:
-                st.success(f"✅ מאוזן! (אפשר עד ₪{result:,.0f})")
-            else:
-                st.warning(f"💳 נדרש: **₪{result:,.0f}**/חודש")
-                diff = result - current_fee
-                st.caption(f"הפרש: +₪{diff:,.0f}")
-        else:
-            st.info("לחץ 🔍 למציאת דמי מנוי מאזנים")
-    
-    st.markdown("---")
-    
-    # === 3. גובה הלוואה ===
-    st.markdown("### 🏦 גובה הלוואה")
-    col1, col2, col3 = st.columns([2, 1, 2])
-    
-    current_loan = int(st.session_state.df_yearly_params['גובה_הלוואה'].iloc[0])
-    with col1:
-        st.metric("ערך נוכחי", f"₪{current_loan:,.0f}")
-    
-    with col2:
-        if st.button("🔍 חשב מאוחד", key="btn_loan", use_container_width=True):
-            with st.spinner("מחפש ערך מאזן..."):
-                result = find_balancing_loan('combined')
-                st.session_state.balance_results['loan'] = result
-    
-    with col3:
-        if 'loan' in st.session_state.balance_results:
-            result = st.session_state.balance_results['loan']
-            if result is None:
-                st.error("❌ לא ניתן לאזן בטווח 10K-500K₪")
-            elif result >= current_loan:
-                st.success(f"✅ מאוזן! (אפשר עד ₪{result:,.0f})")
-            else:
-                st.warning(f"🏦 מקסימום: **₪{result:,.0f}**")
-                diff = current_loan - result
-                st.caption(f"להפחית: ₪{diff:,.0f}")
-        else:
-            st.info("לחץ 🔍 למציאת גובה הלוואה מאזן")
-    
-    st.markdown("---")
-    
-    # === 4. מספר תשלומים ===
-    st.markdown("### 📆 מספר תשלומים")
-    col1, col2, col3 = st.columns([2, 1, 2])
-    
-    current_repay = int(st.session_state.df_yearly_params['תשלומים_חודשים'].iloc[0])
-    with col1:
-        st.metric("ערך נוכחי", f"{current_repay} חודשים")
-    
-    with col2:
-        if st.button("🔍 חשב מאוחד", key="btn_repay", use_container_width=True):
-            with st.spinner("מחפש ערך מאזן..."):
-                result = find_balancing_repayment('combined')
-                st.session_state.balance_results['repay'] = result
-    
-    with col3:
-        if 'repay' in st.session_state.balance_results:
-            result = st.session_state.balance_results['repay']
-            if result is None:
-                st.error("❌ לא ניתן לאזן בטווח 12-240 חודשים")
-            elif result <= current_repay:
-                st.success(f"✅ מאוזן! (אפשר עד {result} חודשים)")
-            else:
-                st.warning(f"📆 מינימום: **{result}** חודשים")
-                diff = result - current_repay
-                st.caption(f"להוסיף: {diff} חודשים")
-        else:
-            st.info("לחץ 🔍 למציאת תשלומים מאזנים")
-    
-    st.markdown("---")
-    
-    # === 5. אחוז לוקחי הלוואה ===
-    st.markdown("### 📊 אחוז לוקחי הלוואה")
-    col1, col2, col3 = st.columns([2, 1, 2])
-    
-    current_pct = float(st.session_state.df_yearly_params['אחוז_לוקחי_הלוואה'].iloc[0])
-    with col1:
-        st.metric("ערך נוכחי", f"{current_pct:,.0f}%")
-    
-    with col2:
-        if st.button("🔍 חשב מאוחד", key="btn_pct", use_container_width=True):
-            with st.spinner("מחפש ערך מאזן..."):
-                result = find_balancing_loan_percentage('combined')
-                st.session_state.balance_results['pct'] = result
-    
-    with col3:
-        if 'pct' in st.session_state.balance_results:
-            result = st.session_state.balance_results['pct']
-            if result is None:
-                st.error("❌ לא ניתן לאזן בטווח 1-100%")
-            elif result >= current_pct:
-                st.success(f"✅ מאוזן! (אפשר עד {result}%)")
-            else:
-                st.warning(f"📊 מקסימום: **{result}%**")
-                diff = current_pct - result
-                st.caption(f"להפחית: {diff:.0f}%")
-        else:
-            st.info("לחץ 🔍 למציאת אחוז מאזן")
-    
-    st.markdown("---")
-    
-    # === כפתור חישוב כולל ===
-    st.markdown("### 🚀 חישוב כל הפרמטרים")
-    
-    if st.button("🔍 חשב את כולם", type="primary", use_container_width=True):
-        progress = st.progress(0)
-        status = st.empty()
+        existing_dist_mode = st.selectbox(
+            "מצב פיזור לקיימות",
+            options=["none", "bell", "custom"],
+            format_func=lambda x: {
+                "none": "❌ ללא פיזור (גיל קבוע)",
+                "bell": "🔔 פעמון סטנדרטי",
+                "custom": "✏️ מותאם אישית"
+            }[x],
+            index=["none", "bell", "custom"].index(st.session_state.existing_distribution_mode),
+            key="existing_dist_mode_select"
+        )
         
-        status.text("מחשב יתרה התחלתית...")
-        st.session_state.balance_results['initial'] = find_balancing_initial_balance()
-        progress.progress(20)
-        
-        status.text("מחשב דמי מנוי...")
-        st.session_state.balance_results['fee'] = find_balancing_fee('combined')
-        progress.progress(40)
-        
-        status.text("מחשב גובה הלוואה...")
-        st.session_state.balance_results['loan'] = find_balancing_loan('combined')
-        progress.progress(60)
-        
-        status.text("מחשב תשלומים...")
-        st.session_state.balance_results['repay'] = find_balancing_repayment('combined')
-        progress.progress(80)
-        
-        status.text("מחשב אחוז הלוואה...")
-        st.session_state.balance_results['pct'] = find_balancing_loan_percentage('combined')
-        progress.progress(100)
-        
-        status.text("✅ החישוב הושלם!")
-        st.rerun()
-    
-    # === סיכום תוצאות ===
-    if st.session_state.balance_results:
-        st.markdown("### 📋 סיכום תוצאות")
-        
-        results = st.session_state.balance_results
-        recommendations = []
-        
-        if results.get('initial', 0) > 0:
-            recommendations.append(f"💰 יתרה התחלתית: **₪{results['initial']:,.0f}**")
-        
-        if results.get('fee') and results['fee'] > current_fee:
-            recommendations.append(f"💳 דמי מנוי: **₪{results['fee']:,.0f}**/חודש (במקום ₪{current_fee:,.0f})")
-        
-        if results.get('loan') and results['loan'] < current_loan:
-            recommendations.append(f"🏦 גובה הלוואה: **₪{results['loan']:,.0f}** (במקום ₪{current_loan:,.0f})")
-        
-        if results.get('repay') and results['repay'] > current_repay:
-            recommendations.append(f"📆 תשלומים: **{results['repay']}** חודשים (במקום {current_repay})")
-        
-        if results.get('pct') and results['pct'] < current_pct:
-            recommendations.append(f"📊 אחוז הלוואה: **{results['pct']}%** (במקום {current_pct:.0f}%)")
-        
-        if recommendations:
-            st.warning("**🎯 אפשרויות לאיזון הקרן (בחר אחת או יותר):**")
-            for rec in recommendations:
-                st.markdown(f"• {rec}")
-        else:
-            st.success("**✅ הקרן מאוזנת!** לא נדרשים שינויים.")
-    
-    # כפתור ניקוי תוצאות
-    if st.session_state.balance_results:
-        if st.button("🗑️ נקה תוצאות"):
-            st.session_state.balance_results = {}
+        if existing_dist_mode != st.session_state.existing_distribution_mode:
+            st.session_state.existing_distribution_mode = existing_dist_mode
             st.rerun()
+    
+    with col2:
+        if existing_dist_mode == "none":
+            st.success("✅ כל הילדים הקיימים מתחתנים בגיל 21 בדיוק (לפי שנת הלידה שלהם)")
+        
+        elif existing_dist_mode == "bell":
+            st.info("🔔 פעמון סטנדרטי: פיזור על 10 שנים, 5% לא מתחתנים")
+            
+            df_dist = st.session_state.existing_distribution_df.copy()
+            df_dist['גיל_חתונה'] = 21 + df_dist['סטייה_שנים']
+            
+            fig = px.bar(
+                df_dist,
+                x='גיל_חתונה',
+                y='אחוז',
+                title="פיזור גיל חתונה - קיימות",
+                labels={'גיל_חתונה': 'גיל חתונה', 'אחוז': 'אחוז ילדים (%)'},
+                color='אחוז',
+                color_continuous_scale='Purples'
+            )
+            fig.update_layout(height=300, showlegend=False, coloraxis_showscale=False)
+            st.plotly_chart(fig, use_container_width=True)
+            
+            total_pct = df_dist['אחוז'].sum()
+            st.caption(f"סה\"כ מתחתנים: {total_pct}%, לא מתחתנים: {100-total_pct}%")
+        
+        elif existing_dist_mode == "custom":
+            st.warning("✏️ ערוך את טבלת הפיזור לקיימות")
+            
+            edited_existing_dist = st.data_editor(
+                st.session_state.existing_distribution_df,
+                column_config={
+                    "סטייה_שנים": st.column_config.NumberColumn("סטייה (שנים)", min_value=-5, max_value=15),
+                    "אחוז": st.column_config.NumberColumn("אחוז (%)", min_value=0, max_value=100)
+                },
+                num_rows="dynamic",
+                use_container_width=True,
+                key="existing_dist_editor"
+            )
+            
+            total_pct = edited_existing_dist['אחוז'].sum()
+            if total_pct > 100:
+                st.error(f"⚠️ סה\"כ {total_pct}% > 100%!")
+            else:
+                st.info(f"✅ סה\"כ מתחתנים: {total_pct}%, לא מתחתנים: {100-total_pct}%")
+            
+            # בדיקה אם הטבלה השתנתה - אם כן, עדכון ו-rerun
+            if not edited_existing_dist.equals(st.session_state.existing_distribution_df):
+                st.session_state.existing_distribution_df = edited_existing_dist
+                st.rerun()
+            
+            df_dist = edited_existing_dist.copy()
+            df_dist['גיל_חתונה'] = 21 + df_dist['סטייה_שנים']
+            
+            fig = px.bar(
+                df_dist,
+                x='גיל_חתונה',
+                y='אחוז',
+                title="פיזור גיל חתונה - קיימות (מותאם)",
+                color='אחוז',
+                color_continuous_scale='Purples'
+            )
+            fig.update_layout(height=250, showlegend=False, coloraxis_showscale=False)
+            st.plotly_chart(fig, use_container_width=True)
+    
+    # =====================================================
+    # פעמון לחדשות
+    # =====================================================
+    st.markdown("---")
+    st.subheader("👨‍👩‍👧‍👦 פיזור למשפחות חדשות")
+    st.caption(f"משפחות שמצטרפות מ-2026 - פיזור גיל חתונה סביב גיל {st.session_state.wedding_age}")
+    
+    col1, col2 = st.columns([1, 2])
+    
+    with col1:
+        new_dist_mode = st.selectbox(
+            "מצב פיזור לחדשות",
+            options=["none", "bell", "custom"],
+            format_func=lambda x: {
+                "none": "❌ ללא פיזור (גיל קבוע)",
+                "bell": "🔔 פעמון סטנדרטי",
+                "custom": "✏️ מותאם אישית"
+            }[x],
+            index=["none", "bell", "custom"].index(st.session_state.distribution_mode),
+            key="new_dist_mode_select"
+        )
+        
+        if new_dist_mode != st.session_state.distribution_mode:
+            st.session_state.distribution_mode = new_dist_mode
+            st.rerun()
+    
+    with col2:
+        if new_dist_mode == "none":
+            st.success(f"✅ כל הילדים של משפחות חדשות מתחתנים בגיל {st.session_state.wedding_age} בדיוק")
+        
+        elif new_dist_mode == "bell":
+            st.info("🔔 פעמון סטנדרטי: פיזור על 10 שנים, 5% לא מתחתנים")
+            
+            df_dist = st.session_state.distribution_df.copy()
+            df_dist['גיל_חתונה'] = st.session_state.wedding_age + df_dist['סטייה_שנים']
+            
+            fig = px.bar(
+                df_dist,
+                x='גיל_חתונה',
+                y='אחוז',
+                title=f"פיזור גיל חתונה - חדשות (סביב גיל {st.session_state.wedding_age})",
+                labels={'גיל_חתונה': 'גיל חתונה', 'אחוז': 'אחוז ילדים (%)'},
+                color='אחוז',
+                color_continuous_scale='Oranges'
+            )
+            fig.update_layout(height=300, showlegend=False, coloraxis_showscale=False)
+            st.plotly_chart(fig, use_container_width=True)
+            
+            total_pct = df_dist['אחוז'].sum()
+            st.caption(f"סה\"כ מתחתנים: {total_pct}%, לא מתחתנים: {100-total_pct}%")
+        
+        elif new_dist_mode == "custom":
+            st.warning("✏️ ערוך את טבלת הפיזור לחדשות")
+            
+            edited_new_dist = st.data_editor(
+                st.session_state.distribution_df,
+                column_config={
+                    "סטייה_שנים": st.column_config.NumberColumn("סטייה (שנים)", min_value=-5, max_value=15),
+                    "אחוז": st.column_config.NumberColumn("אחוז (%)", min_value=0, max_value=100)
+                },
+                num_rows="dynamic",
+                use_container_width=True,
+                key="new_dist_editor"
+            )
+            
+            total_pct = edited_new_dist['אחוז'].sum()
+            if total_pct > 100:
+                st.error(f"⚠️ סה\"כ {total_pct}% > 100%!")
+            else:
+                st.info(f"✅ סה\"כ מתחתנים: {total_pct}%, לא מתחתנים: {100-total_pct}%")
+            
+            # בדיקה אם הטבלה השתנתה - אם כן, עדכון ו-rerun
+            if not edited_new_dist.equals(st.session_state.distribution_df):
+                st.session_state.distribution_df = edited_new_dist
+                st.rerun()
+            
+            df_dist = edited_new_dist.copy()
+            df_dist['גיל_חתונה'] = st.session_state.wedding_age + df_dist['סטייה_שנים']
+            
+            fig = px.bar(
+                df_dist,
+                x='גיל_חתונה',
+                y='אחוז',
+                title="פיזור גיל חתונה - חדשות (מותאם)",
+                color='אחוז',
+                color_continuous_scale='Oranges'
+            )
+            fig.update_layout(height=250, showlegend=False, coloraxis_showscale=False)
+            st.plotly_chart(fig, use_container_width=True)
+    
+    # =====================================================
+    # השוואה בין שני הפיזורים
+    # =====================================================
+    st.markdown("---")
+    st.subheader("📊 השוואת פיזורים")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("**👶 קיימות**")
+        if st.session_state.existing_distribution_mode == "none":
+            st.metric("מצב", "גיל קבוע (21)")
+        else:
+            total = st.session_state.existing_distribution_df['אחוז'].sum()
+            st.metric("מצב", f"פעמון ({total}% מתחתנים)")
+    
+    with col2:
+        st.markdown("**👨‍👩‍👧‍👦 חדשות**")
+        if st.session_state.distribution_mode == "none":
+            st.metric("מצב", f"גיל קבוע ({st.session_state.wedding_age})")
+        else:
+            total = st.session_state.distribution_df['אחוז'].sum()
+            st.metric("מצב", f"פעמון ({total}% מתחתנים)")
+    
+    # הסבר
+    st.markdown("---")
+    with st.expander("📖 הסבר על פיזור גיל נישואין"):
+        st.markdown("""
+### למה להשתמש בפיזור?
+
+במציאות, לא כל הילדים מתחתנים באותו גיל בדיוק. חלקם מתחתנים מוקדם יותר, חלקם מאוחר יותר, וחלק קטן לא מתחתנים בכלל.
+
+**השפעה על המודל:**
+- **ללא פיזור**: כל ההלוואות של שנתון מסוים ניתנות באותה שנה = שיא חד
+- **עם פיזור**: ההלוואות מתפזרות על פני כמה שנים = עקומה רכה יותר
+
+**תוצאה:**
+- פחות לחץ על תזרים המזומנים בשנים ספציפיות
+- גירעון מקסימלי נמוך יותר
+- קל יותר לאזן את הקרן
+
+### הפרמטרים
+
+| סטייה | משמעות |
+|-------|---------|
+| -2 | מתחתנים 2 שנים לפני גיל הבסיס |
+| 0 | מתחתנים בגיל הבסיס בדיוק |
+| +3 | מתחתנים 3 שנים אחרי גיל הבסיס |
+
+**אחוז**: כמה מהילדים מתחתנים בגיל הזה (סה"כ צריך להיות ≤100%)
+        """)
 

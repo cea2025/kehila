@@ -18,11 +18,13 @@ def compute_projections():
     Returns:
         tuple: (df_existing, df_new, df_combined)
     """
-    # === קיימים ===
+    # === קיימים (עם תמיכה בפיזור גיל נישואין) ===
     df_existing = compute_existing_projection(
         df_existing_loans=st.session_state.df_existing_loans,
         loan_amount=st.session_state.existing_loan_amount,
-        repayment_months=st.session_state.existing_repayment_months
+        repayment_months=st.session_state.existing_repayment_months,
+        distribution_mode=st.session_state.existing_distribution_mode,
+        distribution_df=st.session_state.existing_distribution_df if st.session_state.existing_distribution_mode != "none" else None
     )
     
     # === חדשות (עם תמיכה בפיזור גיל נישואין) ===
@@ -65,7 +67,7 @@ def _merge_projections(
     # Merge על פי שנה
     df = pd.merge(
         df_existing[['שנה', 'הלוואות_ניתנו', 'כסף_יוצא', 'החזרי_הלוואות', 'משלמי_דמי_מנוי', 'דמי_מנוי', 'כסף_נכנס', 'איזון']],
-        df_new[['שנה', 'משפחות_נרשמות', 'הלוואות_ניתנו', 'מענקים', 'כסף_יוצא', 'מענקים_סכום', 'החזרי_הלוואות', 'משלמי_דמי_מנוי', 'דמי_מנוי', 'כסף_נכנס', 'איזון']],
+        df_new[['שנה', 'משפחות_נרשמות', 'הלוואות_ניתנו', 'החזרי_דמי_מנוי', 'כסף_יוצא', 'החזרי_דמי_מנוי_סכום', 'החזרי_הלוואות', 'משלמי_דמי_מנוי', 'דמי_מנוי', 'כסף_נכנס', 'איזון']],
         on='שנה',
         how='outer',
         suffixes=('_קיימות', '_חדשות')
@@ -88,8 +90,8 @@ def _merge_projections(
                 'דמי_מנוי', 'כסף_נכנס', 'איזון', 'יתרת_קופה',
                 'הלוואות_ניתנו_קיימות', 'כסף_יוצא_קיימות', 'החזרי_הלוואות_קיימות',
                 'משלמי_דמי_מנוי_קיימות', 'דמי_מנוי_קיימות', 'כסף_נכנס_קיימות', 'איזון_קיימות',
-                'משפחות_נרשמות', 'הלוואות_ניתנו_חדשות', 'מענקים', 'כסף_יוצא_חדשות',
-                'מענקים_סכום', 'החזרי_הלוואות_חדשות', 'משלמי_דמי_מנוי_חדשות',
+                'משפחות_נרשמות', 'הלוואות_ניתנו_חדשות', 'החזרי_דמי_מנוי', 'כסף_יוצא_חדשות',
+                'החזרי_דמי_מנוי_סכום', 'החזרי_הלוואות_חדשות', 'משלמי_דמי_מנוי_חדשות',
                 'דמי_מנוי_חדשות', 'כסף_נכנס_חדשות', 'איזון_חדשות']
     
     for col in int_cols:

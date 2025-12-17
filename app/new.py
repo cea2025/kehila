@@ -54,7 +54,7 @@ def compute_new_projection(
         wedding_age: גיל חתונה (שנים מהצטרפות עד חתונה ראשונה)
         avg_children: ילדים ממוצע למשפחה
         months_between_children: מרווח בחודשים בין ילדים
-        fee_refund_percentage: לא בשימוש במודל זה (מענקים בוטלו)
+        fee_refund_percentage: אחוז החזר מדמי המנוי בחתונת הילד האחרון (0-100)
         start_year: שנת התחלה
         end_year: שנת סיום
         distribution_mode: "none", "bell", או "custom"
@@ -139,7 +139,9 @@ def compute_new_projection(
                     sub_cohorts[deviation] = {
                         'size': sub_size,
                         'wedding_age': wedding_age + deviation,
-                        'loans_given': {}
+                        'loans_given': {},
+                        'cumulative_fees': 0,  # מעקב אחר דמי מנוי מצטברים
+                        'refund_given': False  # האם כבר ניתן החזר
                     }
             
             cohorts[year] = {
@@ -163,8 +165,29 @@ def compute_new_projection(
                 
                 if 0 <= age < sub_membership_years:
                     fee_payers += sub_info['size']
+                    # עדכון דמי מנוי מצטברים
+                    sub_info['cumulative_fees'] += sub_info['size'] * family_fee * 12
         
         total_fees = fee_payers * family_fee * 12
+        
+        # --------------------------------------------------
+        # חישוב החזרי דמי מנוי (בחתונת הילד האחרון)
+        # --------------------------------------------------
+        total_fee_refunds = 0
+        if fee_refund_percentage > 0:
+            for join_year, cohort_info in cohorts.items():
+                age = year - join_year
+                
+                for deviation, sub_info in cohort_info['sub_cohorts'].items():
+                    sub_wedding_age = sub_info['wedding_age']
+                    # שנת חתונת הילד האחרון = גיל חתונה + שנות הלוואות
+                    last_wedding_age = sub_wedding_age + borrowing_years
+                    
+                    # בדיקה אם זו שנת חתונת הילד האחרון ועדיין לא ניתן החזר
+                    if age == int(last_wedding_age) and not sub_info['refund_given']:
+                        refund_amount = sub_info['cumulative_fees'] * (fee_refund_percentage / 100)
+                        total_fee_refunds += refund_amount
+                        sub_info['refund_given'] = True
         
         # --------------------------------------------------
         # חישוב הלוואות חדשות (לפי תת-קוהורטה)
@@ -231,7 +254,7 @@ def compute_new_projection(
         # --------------------------------------------------
         # חישוב איזון
         # --------------------------------------------------
-        money_out = int(total_loans_amount)
+        money_out = int(total_loans_amount + total_fee_refunds)
         money_in = int(total_repayments + total_fees)
         net = money_in - money_out
         
@@ -245,10 +268,10 @@ def compute_new_projection(
             'משלמי_דמי_מנוי': int(fee_payers),
             'הלוואות_ניתנו': int(total_loans_count),
             'אחוז_לווים': round(borrower_percentage, 1),
-            'מענקים': 0,
+            'החזרי_דמי_מנוי': int(total_fee_refunds),
             'כסף_יוצא': money_out,
             'הלוואות_סכום': int(total_loans_amount),
-            'מענקים_סכום': 0,
+            'החזרי_דמי_מנוי_סכום': int(total_fee_refunds),
             'החזרי_הלוואות': int(total_repayments),
             'דמי_מנוי': int(total_fees),
             'כסף_נכנס': money_in,

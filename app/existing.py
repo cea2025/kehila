@@ -59,13 +59,15 @@ def compute_existing_projection(
     loan_amount: int,
     repayment_months: int,
     start_year: int = 2026,
-    end_year: int = 2075
+    end_year: int = 2075,
+    distribution_mode: str = "none",
+    distribution_df = None
 ) -> pd.DataFrame:
     """
     חישוב תזרים מזומנים לילדים קיימים בלבד
     
     לוגיקה:
-    - כל ילד מקבל הלוואה בשנת ההלוואה שלו
+    - כל ילד מקבל הלוואה בשנת ההלוואה שלו (עם אפשרות לפיזור)
     - כל ילד משלם דמי מנוי מ-2026 עד סוף ההחזר של ההלוואה שלו
     - ההחזר השנתי = loan_amount / (repayment_months / 12)
     
@@ -75,6 +77,8 @@ def compute_existing_projection(
         repayment_months: מספר חודשי החזר
         start_year: שנת התחלה
         end_year: שנת סיום
+        distribution_mode: "none", "bell", או "custom"
+        distribution_df: טבלת פיזור (סטייה_שנים, אחוז)
     
     Returns:
         DataFrame עם תזרים שנתי לקיימים
@@ -82,31 +86,83 @@ def compute_existing_projection(
     repayment_years = repayment_months / 12
     yearly_payment_per_loan = loan_amount / repayment_years
     
+    # הכנת טבלת פיזור
+    if distribution_mode == "none" or distribution_df is None:
+        distribution_list = [(0, 100.0)]
+    else:
+        distribution_list = [
+            (int(row['סטייה_שנים']), float(row['אחוז']))
+            for _, row in distribution_df.iterrows()
+            if row['אחוז'] > 0
+        ]
+    
     # מעקב אחר הלוואות פעילות
     # {loan_year: {count, years_left, yearly_payment}}
     active_loans = {}
     
     # מעקב אחר משלמי דמי מנוי
-    # {child_id: {fee_amount, pay_until_year}}
+    # {child_id: {fee_amount, actual_loan_year, pay_until_year}}
     fee_payers = {}
     child_counter = 0
     
-    # הכנת רשימת הילדים הקיימים
+    # הכנת רשימת הילדים הקיימים עם פיזור
     for _, row in df_existing_loans.iterrows():
-        loan_year = int(row['שנת_הלוואה'])
+        base_loan_year = int(row['שנת_הלוואה'])
         num_children = int(row['מספר_ילדים'])
         monthly_fee = float(row['דמי_מנוי_חודשי'])
         
-        # כל ילד משלם מ-2026 עד סוף ההחזר שלו
-        pay_until_year = int(loan_year + repayment_years)
-        
-        for _ in range(num_children):
-            fee_payers[child_counter] = {
-                'fee_amount': monthly_fee,
-                'loan_year': loan_year,
-                'pay_until_year': pay_until_year
-            }
-            child_counter += 1
+        # פיזור הילדים לפי טבלת הפיזור
+        for deviation, pct in distribution_list:
+            actual_loan_year = base_loan_year + deviation
+            
+            # מספר ילדים בסטייה זו
+            children_in_deviation = num_children * (pct / 100)
+            
+            if children_in_deviation > 0:
+                # ילדים שהתחתנו לפני start_year - ההלוואה כבר ניתנה בעבר
+                # רק מעקב החזרים (אם עדיין בתוך תקופת ההחזר)
+                if actual_loan_year < start_year:
+                    # כמה שנים נשארו להחזר?
+                    years_since_loan = start_year - actual_loan_year
+                    remaining_years = repayment_years - years_since_loan
+                    
+                    if remaining_years > 0:
+                        # עדיין מחזירים הלוואה
+                        pay_until_year = int(start_year + remaining_years)
+                        fee_payers[child_counter] = {
+                            'fee_amount': monthly_fee * children_in_deviation,
+                            'count': children_in_deviation,
+                            'actual_loan_year': actual_loan_year,  # לפני start_year
+                            'pay_until_year': pay_until_year,
+                            'remaining_repayment_years': remaining_years,
+                            'loan_already_given': True
+                        }
+                        child_counter += 1
+                else:
+                    # הלוואה תינתן בעתיד
+                    pay_until_year = int(actual_loan_year + repayment_years)
+                    fee_payers[child_counter] = {
+                        'fee_amount': monthly_fee * children_in_deviation,
+                        'count': children_in_deviation,
+                        'actual_loan_year': actual_loan_year,
+                        'pay_until_year': pay_until_year,
+                        'remaining_repayment_years': repayment_years,
+                        'loan_already_given': False
+                    }
+                    child_counter += 1
+    
+    # הוספת הלוואות שכבר ניתנו לפני start_year למעקב
+    for child_id, info in fee_payers.items():
+        if info.get('loan_already_given', False):
+            loan_year = info['actual_loan_year']
+            if loan_year not in active_loans:
+                active_loans[loan_year] = {
+                    'count': info['count'],
+                    'years_left': info['remaining_repayment_years'],
+                    'yearly_payment': yearly_payment_per_loan
+                }
+            else:
+                active_loans[loan_year]['count'] += info['count']
     
     results = []
     
@@ -115,21 +171,21 @@ def compute_existing_projection(
         loans_given_count = 0
         loans_given_amount = 0
         
-        matching_rows = df_existing_loans[df_existing_loans['שנת_הלוואה'] == year]
-        for _, row in matching_rows.iterrows():
-            num_children = int(row['מספר_ילדים'])
-            loans_given_count += num_children
-            loans_given_amount += num_children * loan_amount
-            
-            # הוספה למעקב הלוואות
-            if year not in active_loans:
-                active_loans[year] = {
-                    'count': num_children,
-                    'years_left': repayment_years,
-                    'yearly_payment': yearly_payment_per_loan
-                }
-            else:
-                active_loans[year]['count'] += num_children
+        # סופרים את כל הילדים שההלוואה שלהם בשנה הזו (ולא כבר ניתנה)
+        for child_id, info in fee_payers.items():
+            if info['actual_loan_year'] == year and not info.get('loan_already_given', False):
+                loans_given_count += info['count']
+                loans_given_amount += info['count'] * loan_amount
+                
+                # הוספה למעקב הלוואות
+                if year not in active_loans:
+                    active_loans[year] = {
+                        'count': info['count'],
+                        'years_left': info['remaining_repayment_years'],
+                        'yearly_payment': yearly_payment_per_loan
+                    }
+                else:
+                    active_loans[year]['count'] += info['count']
         
         # === החזרי הלוואות ===
         total_repayments = 0
@@ -155,7 +211,7 @@ def compute_existing_projection(
             # משלמים מ-2026 עד pay_until_year (כולל)
             if year >= start_year and year <= info['pay_until_year']:
                 total_fees += info['fee_amount']
-                paying_count += 1
+                paying_count += info['count']
         
         # === סיכום ===
         money_in = int(total_repayments + total_fees)
