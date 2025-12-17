@@ -24,87 +24,10 @@ st.set_page_config(
 )
 
 # =============================================================================
-# Viewport Meta Tag for Mobile + Sidebar Helper
+# Viewport Meta Tag for Mobile
 # =============================================================================
 st.markdown("""
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
-<!-- כפתור עזרה צף למובייל - מראה איפה ההגדרות -->
-<style>
-    .mobile-welcome-banner {
-        display: none;
-        position: fixed;
-        bottom: 90px;
-        left: 10px;
-        right: 10px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 15px 20px;
-        border-radius: 16px;
-        font-size: 14px;
-        font-weight: 500;
-        box-shadow: 0 8px 30px rgba(102, 126, 234, 0.5);
-        z-index: 99997;
-        direction: rtl;
-        text-align: center;
-        animation: slideUp 0.5s ease-out;
-    }
-    
-    .mobile-welcome-banner .close-btn {
-        position: absolute;
-        top: 8px;
-        left: 12px;
-        font-size: 18px;
-        cursor: pointer;
-        opacity: 0.8;
-    }
-    
-    .mobile-welcome-banner .close-btn:hover {
-        opacity: 1;
-    }
-    
-    .mobile-welcome-banner .icon {
-        font-size: 24px;
-        display: block;
-        margin-bottom: 8px;
-    }
-    
-    .mobile-welcome-banner .tip {
-        font-size: 12px;
-        opacity: 0.9;
-        margin-top: 8px;
-    }
-    
-    @keyframes slideUp {
-        from { 
-            transform: translateY(100px);
-            opacity: 0;
-        }
-        to { 
-            transform: translateY(0);
-            opacity: 1;
-        }
-    }
-    
-    @media (max-width: 768px) {
-        .mobile-welcome-banner {
-            display: block;
-        }
-    }
-    
-    @media (min-width: 769px) {
-        .mobile-welcome-banner {
-            display: none !important;
-        }
-    }
-</style>
-
-<div class="mobile-welcome-banner" id="mobileBanner">
-    <span class="close-btn" onclick="this.parentElement.style.display='none'">✕</span>
-    <span class="icon">📱</span>
-    <strong>גלול למטה לכל התוכן</strong>
-    <div class="tip">💜 לחץ על הכפתור הסגול למטה-שמאל להגדרות</div>
-</div>
 
 <script>
     // הסתר את הבאנר אחרי 6 שניות
@@ -687,69 +610,93 @@ from app.ui_tabs import render_existing_tab, render_new_tab, render_combined_tab
 def render_login_page():
     """עמוד פתיחה מעוצב עם הזנת סיסמא"""
     
-    # סגנון מותאם לעמוד הפתיחה
+    # סגנון מותאם לעמוד הפתיחה - כולל מובייל
     st.markdown("""
     <style>
-        .login-container {
-            max-width: 450px;
-            margin: 0 auto;
-            padding: 40px 30px;
-            background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
-            border-radius: 24px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
-            text-align: center;
-            direction: rtl;
+        /* הסתרת אלמנטים מיותרים */
+        section[data-testid="stSidebar"] { display: none !important; }
+        header[data-testid="stHeader"] { display: none !important; }
+        .stDeployButton { display: none !important; }
+        #MainMenu { display: none !important; }
+        footer { display: none !important; }
+        
+        /* מרכוז התוכן */
+        .block-container {
+            padding-top: 2rem !important;
+            padding-bottom: 1rem !important;
+            max-width: 500px !important;
+            margin: 0 auto !important;
         }
+        
         .login-logo {
-            font-size: 80px;
-            margin-bottom: 20px;
-            animation: float 3s ease-in-out infinite;
-        }
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
+            font-size: 70px;
+            text-align: center;
+            margin-bottom: 10px;
         }
         .login-title {
-            font-size: 32px;
+            font-size: 28px;
             font-weight: 700;
             color: #1a1a2e;
-            margin-bottom: 10px;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
+            margin-bottom: 5px;
+            direction: rtl;
         }
         .login-subtitle {
-            font-size: 18px;
+            font-size: 16px;
             color: #666;
-            margin-bottom: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            direction: rtl;
         }
         .login-divider {
             height: 3px;
             background: linear-gradient(90deg, transparent, #667eea, #764ba2, transparent);
-            margin: 25px 0;
+            margin: 20px 0;
             border-radius: 2px;
         }
         .feature-list {
             text-align: right;
-            margin: 20px 0;
-            padding: 0 20px;
+            direction: rtl;
+            margin: 15px 0;
+            padding: 0 10px;
         }
         .feature-item {
-            padding: 8px 0;
+            padding: 10px 15px;
             color: #444;
-            font-size: 15px;
-            border-bottom: 1px solid #eee;
-        }
-        .feature-item:last-child {
-            border-bottom: none;
+            font-size: 14px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 8px;
         }
         .stTextInput > div > div > input {
             text-align: center;
-            font-size: 24px;
-            letter-spacing: 8px;
+            font-size: 20px;
+            letter-spacing: 5px;
             font-weight: 600;
+            direction: ltr;
         }
-        /* Hide sidebar on login page */
-        section[data-testid="stSidebar"] {
-            display: none;
+        .stTextInput > label {
+            direction: rtl;
+            text-align: right;
+            width: 100%;
+        }
+        .login-footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #999;
+            font-size: 12px;
+            direction: rtl;
+        }
+        
+        /* מובייל */
+        @media (max-width: 768px) {
+            .block-container {
+                padding: 1rem !important;
+            }
+            .login-logo { font-size: 50px; }
+            .login-title { font-size: 24px; }
+            .login-subtitle { font-size: 14px; }
+            .feature-item { font-size: 13px; padding: 8px 12px; }
         }
     </style>
     """, unsafe_allow_html=True)
@@ -772,29 +719,23 @@ def render_login_page():
     
     st.markdown('<div class="login-divider"></div>', unsafe_allow_html=True)
     
-    # שדה הסיסמא
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        password = st.text_input(
-            "🔐 הזן סיסמא לכניסה",
-            type="password",
-            placeholder="••••••••••",
-            key="login_password"
-        )
-        
-        if st.button("🚀 כניסה למערכת", use_container_width=True, type="primary"):
-            if password == "0504105090":
-                st.session_state.authenticated = True
-                st.rerun()
-            elif password:
-                st.error("❌ סיסמא שגויה, נסה שוב")
+    # שדה הסיסמא - ללא עמודות למובייל
+    password = st.text_input(
+        "🔐 הזן סיסמא לכניסה",
+        type="password",
+        placeholder="••••••••••",
+        key="login_password"
+    )
+    
+    if st.button("🚀 כניסה למערכת", use_container_width=True, type="primary"):
+        if password == "0504105090":
+            st.session_state.authenticated = True
+            st.rerun()
+        elif password:
+            st.error("❌ סיסמא שגויה, נסה שוב")
     
     # פוטר
-    st.markdown("""
-    <div style="text-align: center; margin-top: 40px; color: #999; font-size: 12px;">
-        © 2025 קהילת ביאלא | כל הזכויות שמורות
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="login-footer">© 2025 קהילת ביאלא</div>', unsafe_allow_html=True)
 
 
 # =============================================================================
