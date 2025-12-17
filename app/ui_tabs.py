@@ -486,7 +486,7 @@ def render_distribution_tab():
     
     # אתחול session_state לקיימות
     if 'existing_distribution_mode' not in st.session_state:
-        st.session_state.existing_distribution_mode = "none"
+        st.session_state.existing_distribution_mode = "custom"
     
     if 'existing_distribution_df' not in st.session_state:
         st.session_state.existing_distribution_df = pd.DataFrame({

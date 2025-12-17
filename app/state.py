@@ -32,7 +32,7 @@ def init_session_state():
         st.session_state.existing_loan_amount = 100000  # גובה הלוואה אחיד לקיימים
     
     if 'existing_repayment_months' not in st.session_state:
-        st.session_state.existing_repayment_months = 100  # מספר תשלומים אחיד לקיימים
+        st.session_state.existing_repayment_months = 80  # מספר תשלומים אחיד לקיימים
     
     # טבלת הלוואות קיימים (שנת הלוואה, מספר ילדים, דמי מנוי חודשי לילד)
     if 'df_existing_loans' not in st.session_state:
@@ -86,7 +86,7 @@ def init_session_state():
     # פיזור גיל נישואין (פעמון) - לילדים קיימים
     # =======================================================================
     if 'existing_distribution_mode' not in st.session_state:
-        st.session_state.existing_distribution_mode = "none"
+        st.session_state.existing_distribution_mode = "custom"
     
     if 'existing_distribution_df' not in st.session_state:
         st.session_state.existing_distribution_df = pd.DataFrame({
